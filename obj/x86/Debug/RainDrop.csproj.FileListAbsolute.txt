@@ -1,0 +1,17 @@
+C:\lol\RainDrop\RainDrop\bin\Debug\RainDrop.exe
+C:\lol\RainDrop\RainDrop\bin\Debug\RainDrop.pdb
+C:\lol\RainDrop\RainDrop\obj\x86\Debug\WindowsFormsApplication1.form1.resources
+C:\lol\RainDrop\RainDrop\obj\x86\Debug\WindowsFormsApplication1.Properties.Resources.resources
+C:\lol\RainDrop\RainDrop\obj\x86\Debug\RainDrop.csproj.GenerateResource.Cache
+C:\lol\RainDrop\RainDrop\obj\x86\Debug\RainDrop.exe
+C:\lol\RainDrop\RainDrop\obj\x86\Debug\RainDrop.pdb
+C:\lol\RainDrop\RainDrop\obj\x86\Debug\RainDrop.csprojResolveAssemblyReference.cache
+C:\lol\RainDrop\RainDrop\bin\Debug\RainDrop.exe.config
+C:\lol\RainDrop\RainDrop\bin\Debug\Newtonsoft.Json.dll
+C:\lol\RainDrop\RainDrop\obj\x86\Debug\WindowsFormsApplication1.HelpAboutForm.resources
+C:\lol\RainDrop\RainDrop\obj\x86\Debug\Interop.WMPLib.dll
+C:\lol\RainDrop\RainDrop\obj\x86\Debug\RainDrop.csproj.ResolveComReference.cache
+C:\lol\RainDrop\RainDrop\obj\x86\Debug\WindowsFormsApplication1.MediaPanel.resources
+C:\lol\RainDrop\RainDrop\bin\Debug\NReco.VideoConverter.dll
+C:\lol\RainDrop\RainDrop\bin\Debug\NReco.VideoConverter.xml
+C:\lol\RainDrop\RainDrop\obj\x86\Debug\WindowsFormsApplication1.ScrollingLabel.resources
