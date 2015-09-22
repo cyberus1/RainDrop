@@ -67,7 +67,6 @@
     <Compile Include="CompletedDownload.cs" />
     <Compile Include="Decipherer.cs" />
     <Compile Include="Downloader.cs" />
-    <Compile Include="DownloadProgress.cs" />
     <Compile Include="DownloadUrlResolver.cs" />
     <Compile Include="EditPanel.cs">
       <SubType>Component</SubType>
@@ -105,6 +104,12 @@
     <Compile Include="VideoInfo.cs" />
     <Compile Include="VideoNotAvailableException.cs" />
     <Compile Include="VideoType.cs" />
+    <Compile Include="YoutubeDownload.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="YoutubeDownload.Designer.cs">
+      <DependentUpon>YoutubeDownload.cs</DependentUpon>
+    </Compile>
     <Compile Include="YoutubeParseException.cs" />
     <EmbeddedResource Include="Form1.resx">
       <DependentUpon>Form1.cs</DependentUpon>
@@ -128,6 +133,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="ScrollingLabel.resx">
       <DependentUpon>ScrollingLabel.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="YoutubeDownload.resx">
+      <DependentUpon>YoutubeDownload.cs</DependentUpon>
     </EmbeddedResource>
     <None Include="app.config" />
     <None Include="Properties\Settings.settings">

@@ -15,3 +15,4 @@ C:\lol\RainDrop\RainDrop\obj\x86\Debug\WindowsFormsApplication1.MediaPanel.resou
 C:\lol\RainDrop\RainDrop\bin\Debug\NReco.VideoConverter.dll
 C:\lol\RainDrop\RainDrop\bin\Debug\NReco.VideoConverter.xml
 C:\lol\RainDrop\RainDrop\obj\x86\Debug\WindowsFormsApplication1.ScrollingLabel.resources
+C:\lol\RainDrop\RainDrop\obj\x86\Debug\WindowsFormsApplication1.YoutubeDownload.resources

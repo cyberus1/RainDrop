@@ -38,7 +38,7 @@ namespace WindowsFormsApplication1
 
         private int formHeight = DEFAULT_HEIGHT;
         private Point CompletedDownloadLocation;
-        private List<DownloadProgress> Downloads = new List<DownloadProgress>(3);
+        private List<YoutubeDownload> Downloads = new List<YoutubeDownload>(3);
         private List<string> YoutubeVideoID = new List<string>(5);
         private List<string> _queue = new List<string>(3);
         private int _maxRainDrops;
@@ -64,7 +64,7 @@ namespace WindowsFormsApplication1
         
         #region Events
 
-        //private void Notification(object sender, string message, DownloadProgress.AdditionAction action);
+        //private void Notification(object sender, string message, YoutubeDownload.AdditionAction action);
 
         private void RainButton_Click(object sender, EventArgs e)
         {
@@ -120,7 +120,7 @@ namespace WindowsFormsApplication1
 
         private void form1_FormClosing(object sender, FormClosingEventArgs e)
         {
-            foreach (DownloadProgress downloadProgressPanel in Downloads)
+            foreach (YoutubeDownload downloadProgressPanel in Downloads)
             {
                 downloadProgressPanel.exit();
             }
@@ -128,14 +128,14 @@ namespace WindowsFormsApplication1
             
         }
 
-        private void DownloadProgress_NotificationEvent(object sender, string message, DownloadProgress.AdditionAction action)
+        private void DownloadProgress_NotificationEvent(object sender, string message, YoutubeDownload.AdditionAction action)
         {
-            DownloadProgress_NotificationEvent_Sync((DownloadProgress)sender, message, action);
+            DownloadProgress_NotificationEvent_Sync((YoutubeDownload)sender, message, action);
         }
 
-        delegate void NotificationCallback(DownloadProgress sender, string message, DownloadProgress.AdditionAction action);
+        delegate void NotificationCallback(YoutubeDownload sender, string message, YoutubeDownload.AdditionAction action);
 
-        private void DownloadProgress_NotificationEvent_Sync(DownloadProgress sender, string message, DownloadProgress.AdditionAction action)
+        private void DownloadProgress_NotificationEvent_Sync(YoutubeDownload sender, string message, YoutubeDownload.AdditionAction action)
         {
             if (this.InvokeRequired)
             {
@@ -147,16 +147,16 @@ namespace WindowsFormsApplication1
                 displayMessage(message);
                 switch (action)
                 {
-                    case DownloadProgress.AdditionAction.Close:
-                        DownloadPanelClose(sender);
+                    case YoutubeDownload.AdditionAction.Close:
+                        YoutubeDowloadClose(sender);
                         break;
-                    case DownloadProgress.AdditionAction.Complete:
+                    case YoutubeDownload.AdditionAction.Complete:
                         DownloadComplete(sender);
                         break;
-                    case DownloadProgress.AdditionAction.Exception:
-                        DownloadPanelClose(sender);
+                    case YoutubeDownload.AdditionAction.Exception:
+                        YoutubeDowloadClose(sender);
                         break;
-                    case DownloadProgress.AdditionAction.None:
+                    case YoutubeDownload.AdditionAction.None:
                         break;
                     default:
                         throw new Exception("DownloadProgress_NotificationEvent action not recognized");
@@ -239,10 +239,12 @@ namespace WindowsFormsApplication1
 
         private void addRainDrop(string url)
         {
-            DownloadProgress temp = new DownloadProgress(BucketPathTB.Text, url, ProgressFormLocation);
-            temp.NotificationEvent +=new DownloadProgress.InfoEvent(DownloadProgress_NotificationEvent);
-            temp.VideoFromPlaylistUrlFound += new DownloadProgress.foundUrlEvent(DownloadProgress_VideoFromPlaylistUrlFound);
-            this.Controls.Add(temp.MainPanel); // should make download progress a usercontrol
+            YoutubeDownload temp = new YoutubeDownload();
+            temp.Location = ProgressFormLocation;
+            temp.Start(BucketPathTB.Text, url);
+            temp.NotificationEvent +=new YoutubeDownload.InfoEvent(DownloadProgress_NotificationEvent);
+            temp.VideoFromPlaylistUrlFound += new YoutubeDownload.foundUrlEvent(DownloadProgress_VideoFromPlaylistUrlFound);
+            this.Controls.Add(temp); 
             Downloads.Add(temp);
             
             ProgressFormLocation.Y += Y_DISTANCE_BETWEEN_WINDOWS;
@@ -253,7 +255,7 @@ namespace WindowsFormsApplication1
             ResultRTB.Text += message + "\r\n";
         }
 
-        public void DownloadPanelClose(DownloadProgress downloadProgressPanel)
+        public void YoutubeDowloadClose(YoutubeDownload downloadProgressPanel)
         {
             if (downloadProgressPanel != null)
             {
@@ -273,9 +275,9 @@ namespace WindowsFormsApplication1
             }
         }
 
-        public void DownloadComplete(DownloadProgress downloadProgressPanel)
+        public void DownloadComplete(YoutubeDownload downloadProgressPanel)
         {
-            DownloadPanelClose(downloadProgressPanel);
+            YoutubeDowloadClose(downloadProgressPanel);
             if (formHeight == DEFAULT_HEIGHT)
             {
                 formHeight += COMPLETED_HEADER_HEIGHT;
@@ -283,14 +285,14 @@ namespace WindowsFormsApplication1
             formHeight += CompletedDownload.HEIGHT;
             ExpandFormHeight();
 
-            Completed.Add(new CompletedDownload(this, downloadProgressPanel.Bucket, downloadProgressPanel.FileName, CompletedDownloadLocation));
+            Completed.Add(new CompletedDownload(this, downloadProgressPanel.DownloadDirectory, downloadProgressPanel.FileName, CompletedDownloadLocation));
             CompletedDownloadLocation.Y += CompletedDownload.HEIGHT;
         }
 
         private void organizeDownloadForms()
         {
             ProgressFormLocation = PROGRESS_FORM_LOCATION;
-            foreach (DownloadProgress downloadProgressPanel in Downloads)
+            foreach (YoutubeDownload downloadProgressPanel in Downloads)
             {
                 downloadProgressPanel.Location = ProgressFormLocation;
                 ProgressFormLocation.Y += Y_DISTANCE_BETWEEN_WINDOWS;
@@ -322,12 +324,10 @@ namespace WindowsFormsApplication1
         #region Media Player
         public void Play(CompletedDownload toPlay)
         {
-            //mediaPanel1.Play(toPlay);
             mediaHandler.Play(toPlay);
         }
         public void Pause(CompletedDownload toPlay)
         {
-            //mediaPanel1.Pause(toPlay);
             mediaHandler.Pause();
         }
         

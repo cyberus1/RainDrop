@@ -1,23 +1,20 @@
-﻿//Error:
-//-loops if playlist url is wrong
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Data;
 using System.Drawing;
+using System.Data;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
+using YoutubeExtractor;
+using System.Threading;
 using System.IO;
 using System.Text.RegularExpressions;
-//using System.Threading;
-using YoutubeExtractor;
 using System.Net;
-using System.Threading;
 
 namespace WindowsFormsApplication1
 {
-    public class DownloadProgress
+    public partial class YoutubeDownload : UserControl
     {
         #region Constants
         private const string YOUTUBE_VIDEO_URL = "http://www.youtube.com/watch?v=";
@@ -27,7 +24,7 @@ namespace WindowsFormsApplication1
         private const string YOUTUBE_SEARCH_THIRD_STRING = "data-context-item-id=\"";
         #endregion
 
-        
+        #region Public Constants
         public enum AdditionAction
         {
             None,
@@ -35,40 +32,17 @@ namespace WindowsFormsApplication1
             Complete,
             Exception
         }
-        public Panel MainPanel;
-
-        #region Private Variables
-        
-        private Label InfoLabel;
-        private PictureBox CancelPictureBox;
-        private ProgressBar progressBar;
-
-        //private string _bucket;
-        private string _searchTerm;
-        //private bool downloadComplete = true;
-        private Point _location;
-        private Thread downloadThread;
         #endregion
 
+        #region Private Variables
+        private string _searchTerm;
+        //private Point _location;
+        private Thread downloadThread;
         private bool _isClosing = false;
-
-        #region Constructors
-        public DownloadProgress( string bucket, string searchTerm, Point location)
-        {
-            Bucket = bucket;
-            _searchTerm = searchTerm;
-            _location = location;
-
-            InitializeComponent();
-            InfoLabel.Text = "Searching for: " + _searchTerm;
-
-            downloadThread = new Thread(new ThreadStart(download));
-            downloadThread.Start();
-        }
         #endregion
 
         #region Get/Set
-        public string Bucket
+        public string DownloadDirectory
         {
             get;
             protected set;
@@ -78,17 +52,12 @@ namespace WindowsFormsApplication1
             get;
             protected set;
         }
-        public Point Location
-        {
-            get { return MainPanel.Location; }
-            set { MainPanel.Location = value; }
-        }
-        public bool isClosing
-        {
-            get { return _isClosing; }
-        }
         #endregion
 
+        public YoutubeDownload()
+        {
+            InitializeComponent();
+        }
 
         #region DownloadThread
         private void download()
@@ -103,7 +72,7 @@ namespace WindowsFormsApplication1
 
                 FileName = getFileName(video);
 
-                if (File.Exists(Path.Combine(Bucket, FileName)))
+                if (File.Exists(Path.Combine(DownloadDirectory, FileName)))
                 {
                     Notify("File Already Exist: " + FileName, AdditionAction.Complete); //switched to complete
                     return;
@@ -111,7 +80,7 @@ namespace WindowsFormsApplication1
 
                 //downloadComplete = false;
 
-                var audioDownloader = new AudioDownloader(video, Path.Combine(Bucket, FileName));
+                var audioDownloader = new AudioDownloader(video, Path.Combine(DownloadDirectory, FileName));
 
                 audioDownloader.DownloadProgressChanged += (sender, args) =>
                     progressBar.BeginInvoke(
@@ -149,7 +118,17 @@ namespace WindowsFormsApplication1
         }
         #endregion
 
-        #region public methods
+        #region Public Methods
+
+        public void Start(string dowloadDirectory, string searchTerm)
+        {
+            DownloadDirectory = dowloadDirectory;
+            _searchTerm = searchTerm;
+            InfoLabel.Text = "Searching for: " + _searchTerm;
+
+            downloadThread = new Thread(new ThreadStart(download));
+            downloadThread.Start();
+        }
 
         public void exit()
         {
@@ -159,14 +138,7 @@ namespace WindowsFormsApplication1
             //}
             Dispose();
         }
-        
-        #endregion
 
-        #region Events
-        private void CancelPictureBox_Click(object sender, EventArgs e)
-        {
-            Notify("Download Cancled by user.", AdditionAction.Close);
-        }
         #endregion
 
         #region New Events
@@ -183,7 +155,7 @@ namespace WindowsFormsApplication1
         #region Helpers
 
         #region First Degree Helpers
-        
+
         private void Notify(string message, AdditionAction action)
         {
             if (_isClosing == true)
@@ -202,9 +174,9 @@ namespace WindowsFormsApplication1
                     _isClosing = true;
                     break;
                 default:
-                    throw new Exception("DownloadProgress Notify exception");
+                    throw new Exception("YoutubeDownload Notify exception");
             }
-            if (NotificationEvent != null) 
+            if (NotificationEvent != null)
                 NotificationEvent(this, message, action);
         }
 
@@ -264,21 +236,21 @@ namespace WindowsFormsApplication1
         {
             string videoTitle = RemoveIllegalPathCharacters(video.Title);
             string fileName = "Error";
-                switch (video.AudioType)
-                {
-                    case AudioType.Aac:
-                        fileName = videoTitle + ".mp4";
-                        break;
-                    case AudioType.Mp3:
-                        fileName = videoTitle + ".mp3";
-                        break;
-                    case AudioType.Vorbis:
-                        MessageBox.Show("Warning: .ogg file, will need to be converted");
-                        fileName = videoTitle + ".mp3";
-                        break;
-                    case AudioType.Unknown:
-                        throw new Exception("DownloadProgress.cs: AudioType Unknown");
-                }
+            switch (video.AudioType)
+            {
+                case AudioType.Aac:
+                    fileName = videoTitle + ".mp4";
+                    break;
+                case AudioType.Mp3:
+                    fileName = videoTitle + ".mp3";
+                    break;
+                case AudioType.Vorbis:
+                    MessageBox.Show("Warning: .ogg file, will need to be converted");
+                    fileName = videoTitle + ".mp3";
+                    break;
+                case AudioType.Unknown:
+                    throw new Exception("YoutubeDownload.cs: AudioType Unknown");
+            }
             return fileName;
         }
 
@@ -327,10 +299,10 @@ namespace WindowsFormsApplication1
             int startOfPlaylistId = html.IndexOf(THIRD_SEARCH_STRING, html.IndexOf(SECOND_SEARCH_STRING, html.IndexOf(FIRST_SEARCH_STRING))) + THIRD_SEARCH_STRING.Length;
             int endOfPlaylistId = html.IndexOf('\"', startOfPlaylistId);
             string PlaylistId = html.Substring(startOfPlaylistId, endOfPlaylistId - startOfPlaylistId);
-            MessageBox.Show("Found Playlist: " + PlaylistId);
+            //MessageBox.Show("Found Playlist: " + PlaylistId);
             return PLAYLIST_URL + PlaylistId;
         }
-        
+
 
         private void playlistHelper(string PlaylistUrl)
         {
@@ -356,7 +328,7 @@ namespace WindowsFormsApplication1
         private string getPlaylistName(string html)
         {
             const string PLAYLIST_NAME_SEARCH = "<h1 class=\"pl-header-title\">";
-            const string PLAYLIST_NAME_END_SEARCH =  "</h1>";
+            const string PLAYLIST_NAME_END_SEARCH = "</h1>";
 
             int startIndex = html.IndexOf(PLAYLIST_NAME_SEARCH) + PLAYLIST_NAME_SEARCH.Length;
             int endIndex = html.IndexOf(PLAYLIST_NAME_END_SEARCH, startIndex);
@@ -407,78 +379,14 @@ namespace WindowsFormsApplication1
         {
             return search.Trim().Replace(' ', '+');
         }
-
-        private void Dispose()
-        {
-            if (MainPanel.InvokeRequired)
-            {
-                MainPanel.BeginInvoke(
-                    new Action(() =>
-                    {
-                        MainPanel.Dispose();
-                    }));
-            }
-            else
-            {
-                MainPanel.Dispose();
-            }
-        }
         #endregion
 
         #endregion
 
-        #region InitializeComponent
-        private void InitializeComponent()
+        #region Events
+        private void CancelPictureBox_Click(object sender, EventArgs e)
         {
-            this.MainPanel = new System.Windows.Forms.Panel();
-            this.InfoLabel = new System.Windows.Forms.Label();
-            this.CancelPictureBox = new System.Windows.Forms.PictureBox();
-            this.progressBar = new System.Windows.Forms.ProgressBar();
-            this.MainPanel.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.CancelPictureBox)).BeginInit();
-            // 
-            // MainPanel
-            // 
-            this.MainPanel.BackColor = System.Drawing.Color.Black;
-            this.MainPanel.Controls.Add(this.InfoLabel);
-            this.MainPanel.Controls.Add(this.CancelPictureBox);
-            this.MainPanel.Controls.Add(this.progressBar);
-            this.MainPanel.Location = _location;
-            this.MainPanel.Name = "MainPanel";
-            this.MainPanel.Size = new System.Drawing.Size(417, 43);
-            this.MainPanel.TabIndex = 2;
-            // 
-            // InfoLabel
-            // 
-            this.InfoLabel.AutoSize = true;
-            this.InfoLabel.BackColor = System.Drawing.Color.Transparent;
-            this.InfoLabel.Font = new System.Drawing.Font("Microsoft Sans Serif", 6.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.InfoLabel.ForeColor = System.Drawing.Color.White;
-            this.InfoLabel.Location = new System.Drawing.Point(9, 3);
-            this.InfoLabel.Name = "InfoLabel";
-            this.InfoLabel.Size = new System.Drawing.Size(86, 12);
-            this.InfoLabel.TabIndex = 5;
-            this.InfoLabel.Text = "Resolving Url...";
-            // 
-            // CancelPictureBox
-            // 
-            this.CancelPictureBox.Image = Properties.Resources.fancy_close;
-            this.CancelPictureBox.Location = new System.Drawing.Point(377, 10);
-            this.CancelPictureBox.Name = "CancelPictureBox";
-            this.CancelPictureBox.Size = new System.Drawing.Size(30, 30);
-            this.CancelPictureBox.TabIndex = 4;
-            this.CancelPictureBox.TabStop = false;
-            this.CancelPictureBox.Click += new System.EventHandler(this.CancelPictureBox_Click);
-            // 
-            // progressBar
-            // 
-            this.progressBar.Location = new System.Drawing.Point(9, 18);
-            this.progressBar.Name = "progressBar";
-            this.progressBar.Size = new System.Drawing.Size(362, 18);
-            this.progressBar.TabIndex = 3;
-            this.MainPanel.ResumeLayout(false);
-            this.MainPanel.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.CancelPictureBox)).EndInit();
+            //Notify("Download Cancled by user.", AdditionAction.Close);
         }
         #endregion
 
