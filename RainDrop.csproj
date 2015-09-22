@@ -35,7 +35,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup>
-    <ApplicationIcon>raindrop.ico</ApplicationIcon>
+    <ApplicationIcon>Images\raindrop.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Newtonsoft.Json">
@@ -152,20 +152,20 @@
     <WCFMetadata Include="Service References\" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="button_pause.png" />
-    <None Include="button_play.png" />
+    <None Include="Images\button_pause.png" />
+    <None Include="Images\button_play.png" />
     <None Include="Images\deleteIcon.png" />
     <None Include="Images\editIcon.png" />
     <None Include="Images\play_pause.png" />
     <None Include="Images\remove-icon.png" />
     <None Include="Images\rename-icon.png" />
     <None Include="Images\tagIcon.png" />
-    <None Include="fancy_close.png" />
+    <None Include="Images\fancy_close.png" />
     <None Include="Images\next_image.png" />
     <None Include="Images\pause_image.png" />
     <None Include="Images\play_image.png" />
     <None Include="Images\previous_image.png" />
-    <Content Include="raindrop.ico" />
+    <Content Include="Images\raindrop.ico" />
   </ItemGroup>
   <ItemGroup>
     <COMReference Include="WMPLib">

@@ -1,5 +1,5 @@
 ﻿//Errors: 
-//when downloading playlists and max raidrops is set to 3, 4 will download
+//when downloading playlists and max raidrops is set to 3, 4 will download - seems to be fixed
 //
 //
 
@@ -34,8 +34,8 @@ namespace WindowsFormsApplication1
         private const int MAXIMUM_ALLOWED_RAINDROPS = 10;
         #endregion
 
-        Point ProgressFormLocation;
-
+        #region Private Variables
+        private Point ProgressFormLocation;
         private int formHeight = DEFAULT_HEIGHT;
         private Point CompletedDownloadLocation;
         private List<YoutubeDownload> Downloads = new List<YoutubeDownload>(3);
@@ -44,12 +44,11 @@ namespace WindowsFormsApplication1
         private int _maxRainDrops;
         private Size _size;
         private MediaHandler mediaHandler;
+        #endregion
 
         #region Public Variables
         public List<CompletedDownload> Completed = new List<CompletedDownload>(3);
         #endregion
-
-
 
         public form1()
         {
