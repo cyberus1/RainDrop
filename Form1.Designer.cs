@@ -228,6 +228,7 @@
             this.mediaPanel1.MinimumSize = new System.Drawing.Size(464, 58);
             this.mediaPanel1.Name = "mediaPanel1";
             this.mediaPanel1.Size = new System.Drawing.Size(464, 58);
+            this.mediaPanel1.StoreSettings = false;
             this.mediaPanel1.TabIndex = 4;
             // 
             // form1
@@ -236,7 +237,7 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackgroundImage = ((System.Drawing.Image)(resources.GetObject("$this.BackgroundImage")));
             this.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
-            this.ClientSize = new System.Drawing.Size(983, 441);
+            this.ClientSize = new System.Drawing.Size(983, 450);
             this.Controls.Add(this.mediaPanel1);
             this.Controls.Add(this.panel2);
             this.Controls.Add(this.panel1);

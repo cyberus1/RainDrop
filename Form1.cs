@@ -64,7 +64,7 @@ namespace WindowsFormsApplication1
         
         #region Events
 
-        
+        //private void Notification(object sender, string message, DownloadProgress.AdditionAction action);
 
         private void RainButton_Click(object sender, EventArgs e)
         {
@@ -128,6 +128,63 @@ namespace WindowsFormsApplication1
             
         }
 
+        private void DownloadProgress_NotificationEvent(object sender, string message, DownloadProgress.AdditionAction action)
+        {
+            DownloadProgress_NotificationEvent_Sync((DownloadProgress)sender, message, action);
+        }
+
+        delegate void NotificationCallback(DownloadProgress sender, string message, DownloadProgress.AdditionAction action);
+
+        private void DownloadProgress_NotificationEvent_Sync(DownloadProgress sender, string message, DownloadProgress.AdditionAction action)
+        {
+            if (this.InvokeRequired)
+            {
+                NotificationCallback d = new NotificationCallback(DownloadProgress_NotificationEvent_Sync);
+                this.Invoke(d, new object[] { sender, message, action });
+            }
+            else
+            {
+                displayMessage(message);
+                switch (action)
+                {
+                    case DownloadProgress.AdditionAction.Close:
+                        DownloadPanelClose(sender);
+                        break;
+                    case DownloadProgress.AdditionAction.Complete:
+                        DownloadComplete(sender);
+                        break;
+                    case DownloadProgress.AdditionAction.Exception:
+                        DownloadPanelClose(sender);
+                        break;
+                    case DownloadProgress.AdditionAction.None:
+                        break;
+                    default:
+                        throw new Exception("DownloadProgress_NotificationEvent action not recognized");
+                }
+            }
+        }
+
+        private void DownloadProgress_VideoFromPlaylistUrlFound(object sender, string url)
+        {
+            DownloadProgress_VideoFromPlaylistUrlFound_Sync(url);
+        }
+
+        delegate void Callback(string url);
+        private void DownloadProgress_VideoFromPlaylistUrlFound_Sync(string url)
+        {
+            if (this.InvokeRequired)
+            {
+                Callback d
+                    = new Callback(DownloadProgress_VideoFromPlaylistUrlFound_Sync);
+                this.Invoke(d, new object[] { url });
+            }
+            else
+            {
+                AddOrQueueRaindrop(url);
+            }
+        }
+
+
         private void form1_Resize(object sender, EventArgs e)
         {
         }
@@ -182,7 +239,12 @@ namespace WindowsFormsApplication1
 
         private void addRainDrop(string url)
         {
-            Downloads.Add(new DownloadProgress(this, BucketPathTB.Text, url, ProgressFormLocation));
+            DownloadProgress temp = new DownloadProgress(BucketPathTB.Text, url, ProgressFormLocation);
+            temp.NotificationEvent +=new DownloadProgress.InfoEvent(DownloadProgress_NotificationEvent);
+            temp.VideoFromPlaylistUrlFound += new DownloadProgress.foundUrlEvent(DownloadProgress_VideoFromPlaylistUrlFound);
+            this.Controls.Add(temp.MainPanel); // should make download progress a usercontrol
+            Downloads.Add(temp);
+            
             ProgressFormLocation.Y += Y_DISTANCE_BETWEEN_WINDOWS;
         }
 

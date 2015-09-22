@@ -27,27 +27,35 @@ namespace WindowsFormsApplication1
         private const string YOUTUBE_SEARCH_THIRD_STRING = "data-context-item-id=\"";
         #endregion
 
+        
+        public enum AdditionAction
+        {
+            None,
+            Close,
+            Complete,
+            Exception
+        }
+        public Panel MainPanel;
+
         #region Private Variables
-        private Panel MainPanel;
+        
         private Label InfoLabel;
         private PictureBox CancelPictureBox;
         private ProgressBar progressBar;
 
-        private form1 _masterform;
-        private string _bucket;
+        //private string _bucket;
         private string _searchTerm;
-        private string _fileName;
-        private bool downloadComplete = true;
+        //private bool downloadComplete = true;
         private Point _location;
         private Thread downloadThread;
         #endregion
 
         private bool _isClosing = false;
 
-        public DownloadProgress(form1 masterform, string bucket, string searchTerm, Point location)
+        #region Constructors
+        public DownloadProgress( string bucket, string searchTerm, Point location)
         {
-            _masterform = masterform;
-            _bucket = bucket;
+            Bucket = bucket;
             _searchTerm = searchTerm;
             _location = location;
 
@@ -57,24 +65,23 @@ namespace WindowsFormsApplication1
             downloadThread = new Thread(new ThreadStart(download));
             downloadThread.Start();
         }
+        #endregion
 
         #region Get/Set
         public string Bucket
         {
-            get { return _bucket; }
+            get;
+            protected set;
         }
         public string FileName
         {
-            get { return _fileName; }
+            get;
+            protected set;
         }
         public Point Location
         {
-            get { return _location; }
-            set
-            {
-                _location = value;
-                MainPanel.Location = value;
-            }
+            get { return MainPanel.Location; }
+            set { MainPanel.Location = value; }
         }
         public bool isClosing
         {
@@ -82,199 +89,105 @@ namespace WindowsFormsApplication1
         }
         #endregion
 
-        #region public methods
 
+        #region DownloadThread
         private void download()
         {
             try
             {
-                if (handleSearch(_searchTerm))
-                {
-                    //_masterform.BeginInvoke(
-                    //    new Action(() =>
-                    //    {
-                    //        _isClosing = true;
-                    //        _masterform.displayMessage("Playlist Downloading");
-                    //        _masterform.DownloadPanelClose(this);
-                    //    }));
-                    Notify("Playlist Downloading", AdditionAction.Close);
-                }
+                string url = handleSearch(_searchTerm);
 
-                string url;
-                if (_searchTerm.StartsWith("http"))
-                {
-                    url = _searchTerm;
-                }
-                else
-                {
-                    url = getYoutubeUrl(_searchTerm);
-                }
-                //_masterform.BeginInvoke(
-                //   new Action(() =>
-                //   {
-                //       _masterform.displayMessage("Found URL: " + url);
-                //   }));
                 Notify("Found URL: " + url, AdditionAction.None);
 
-                IEnumerable<VideoInfo> videos = DownloadUrlResolver.GetDownloadUrls(url, false)
-                    .Where(info => info.AudioBitrate != 0)
-                    .OrderByDescending(info => info.AudioBitrate);
-                int bestBitRate = videos.First().AudioBitrate;
-                videos = videos
-                    .Where(info => info.AudioBitrate == bestBitRate);
-                
-                VideoInfo video = videos.First();
-                foreach (VideoInfo info in videos) // this sellects .mp3 files first and then .aac files and finaly .ogg
-                {
-                    if (info.AudioType == AudioType.Mp3)
-                    {
-                        video = info;
-                    }
-                    else if (info.AudioType == AudioType.Aac && (video.AudioType != AudioType.Mp3))
-                    {
-                        video = info;
-                    }
-                }
-                if (video.RequiresDecryption)
-                {
-                    DownloadUrlResolver.DecryptDownloadUrl(video);
-                }
-                string videoTitle = RemoveIllegalPathCharacters(video.Title);
+                VideoInfo video = getVideo(url);
 
-                ////////////////////////////////////
-                switch (video.AudioType)
-                {
-                    case AudioType.Aac:
-                        _fileName = videoTitle + ".mp4";
-                        break;
-                    case AudioType.Mp3:
-                        _fileName = videoTitle + ".mp3";
-                        break;
-                    case AudioType.Vorbis:
-                        MessageBox.Show("Warning: .ogg file, will need to be converted");
-                        _fileName = videoTitle + ".mp3";
-                        break;
-                    case AudioType.Unknown:
-                        throw new Exception("DownloadProgress.cs: AudioType Unknown");
-                }
-                //MessageBox.Show(video.VideoType.ToString());
-                //MessageBox.Show(video.AudioType.ToString());
-                //MessageBox.Show(video.AudioBitrate.ToString());
+                FileName = getFileName(video);
 
-                if (File.Exists(Path.Combine(_bucket, _fileName)))
+                if (File.Exists(Path.Combine(Bucket, FileName)))
                 {
-                    //_masterform.BeginInvoke(
-                    //new Action(() =>
-                    //{
-                    //    _isClosing = true;
-                    //    _masterform.displayMessage("File Already Exist: " + _fileName);
-                    //    _masterform.DownloadPanelClose(this);
-                    //}));
-                    Notify("File Already Exist: " + _fileName, AdditionAction.Complete); //switched to complete
+                    Notify("File Already Exist: " + FileName, AdditionAction.Complete); //switched to complete
                     return;
                 }
-                downloadComplete = false;
-                var audioDownloader = new AudioDownloader(video,
-                    Path.Combine(_bucket, _fileName));
+
+                //downloadComplete = false;
+
+                var audioDownloader = new AudioDownloader(video, Path.Combine(Bucket, FileName));
+
                 audioDownloader.DownloadProgressChanged += (sender, args) =>
                     progressBar.BeginInvoke(
                     new Action(() =>
                     {
                         progressBar.Value = (int)(args.ProgressPercentage);
                     }));
+
                 audioDownloader.AudioExtractionProgressChanged += (sender, args) =>
                     progressBar.BeginInvoke(
                     new Action(() =>
                     {
                         if (args.ProgressPercentage == 0)
                         {
-                            InfoLabel.BeginInvoke(
-                                new Action(() =>
-                                    {
-                                        InfoLabel.Text = "Extracting: " + _fileName; ;
-                                    }));
+                            SetInfoLable("Extracting: " + FileName);
                         }
                         progressBar.Value = (int)(args.ProgressPercentage);
                     }));
-                InfoLabel.BeginInvoke(
-                    new Action(() =>
-                    {
-                        InfoLabel.Text = _fileName;
-                    }));
+
+                SetInfoLable(FileName);
 
                 audioDownloader.Execute();
-                downloadComplete = true; 
-
-                //_masterform.BeginInvoke(
-                //    new Action(() =>
-                //    {
-                //        _isClosing = true;
-                //        _masterform.displayMessage("Completed Download of: " + _fileName);
-                //        _masterform.DownloadComplete(this);
-                //        return;
-                //    }));
-                Notify("Completed Download of: " + _fileName, AdditionAction.Complete);
+                //downloadComplete = true; 
+                Notify("Completed Download of: " + FileName, AdditionAction.Complete);
+                return;
             }
             catch (Exception ex)
             {
                 try
                 {
-                    //_masterform.BeginInvoke(
-                    //    new Action(() =>
-                    //    {
-                    //        if (!_isClosing)
-                    //        {
-                    //            _isClosing = true;
-                    //            _masterform.displayMessage("Download Canceled: Exception Thrown: " + ex.ToString());
-                    //            _masterform.DownloadPanelClose(this);
-                    //        }
-                    //    }));
                     Notify("Download Canceled: Exception Thrown: " + ex.ToString(), AdditionAction.Exception);
                 }
                 catch (Exception) { }
             }
         }
+        #endregion
+
+        #region public methods
 
         public void exit()
         {
-            try
-            {
-                downloadThread.Abort();
-            }
-            catch (Exception) { }
-            if (File.Exists(_fileName) && !downloadComplete)
-            {
-                File.Delete(Path.Combine(_bucket, _fileName));
-            }
+            //if (File.Exists(_fileName) && !downloadComplete)
+            //{
+            //    File.Delete(Path.Combine(_bucket, _fileName));
+            //}
             Dispose();
         }
-
-        public void Dispose()
-        {
-            MainPanel.Dispose();
-        }
+        
         #endregion
 
         #region Events
         private void CancelPictureBox_Click(object sender, EventArgs e)
         {
-            _isClosing = true;
-            _masterform.DownloadPanelClose(this);
+            Notify("Download Cancled by user.", AdditionAction.Close);
         }
+        #endregion
+
+        #region New Events
+        public delegate void InfoEvent(object sender, string message, AdditionAction action);
+        [Browsable(true)]
+        public event InfoEvent NotificationEvent;
+        public delegate void foundUrlEvent(object sender, string url);
+        [Browsable(true)]
+        public event foundUrlEvent PlaylistDetected;
+        [Browsable(true)]
+        public event foundUrlEvent VideoFromPlaylistUrlFound;
         #endregion
 
         #region Helpers
 
-        public enum AdditionAction
-        {
-            None,
-            Close,
-            Complete,
-            Exception
-        }
-
+        #region First Degree Helpers
+        
         private void Notify(string message, AdditionAction action)
         {
+            if (_isClosing == true)
+                return;
             switch (action)
             {
                 case AdditionAction.None:
@@ -286,10 +199,6 @@ namespace WindowsFormsApplication1
                     _isClosing = true;
                     break;
                 case AdditionAction.Exception:
-                    if (_isClosing)
-                    {
-                        return;
-                    }
                     _isClosing = true;
                     break;
                 default:
@@ -299,28 +208,97 @@ namespace WindowsFormsApplication1
                 NotificationEvent(this, message, action);
         }
 
-        //private void DisplayMessage(string message, AdditionAction action)
-        //{
-        //    if (_masterform.InvokeRequired)
-        //    {
-        //        DisplayMessageCallback d = new DisplayMessageCallback(message, action);
-        //        this.Invoke(d, new object[] { message });
-        //    }
-        //    switch (action)
-        //    {
-        //        case AdditionAction.None:
-        //            break;
-        //        default:
-        //            break;
-        //    }        
-        // }
+        private string handleSearch(string search)
+        {
+            if (search.StartsWith("http://") || search.StartsWith("https://") || search.StartsWith("www.")) //not sure if https:// will work
+            {
+                if (search.Contains("/playlist?list="))
+                {
+                    playlistHelper(search);
+                    Notify("Playlist Downloading", AdditionAction.Close);
+                }
+            }
+            else
+            {
+                if (search.Contains("playlist"))
+                {
+                    DialogResult dialogResult = MessageBox.Show("Would you like to download the playlist?", "Download Playlist", MessageBoxButtons.YesNo);
+                    if (dialogResult == DialogResult.Yes)
+                    {
+                        playlistHelper(getPlaylistUrl(search));
+                        Notify("Playlist Downloading", AdditionAction.Close);
+                    }
+                }
+            }
+            return getYoutubeUrl(search);
+        }
 
-        public delegate void InfoEvent(object sender, string message, AdditionAction action);
-        [Browsable(true)]
-        public event InfoEvent NotificationEvent;
-        
-        
+        private VideoInfo getVideo(string url)
+        {
+            IEnumerable<VideoInfo> videos = DownloadUrlResolver.GetDownloadUrls(url, false)
+                    .Where(info => info.AudioBitrate != 0)
+                    .OrderByDescending(info => info.AudioBitrate);
+            int bestBitRate = videos.First().AudioBitrate;
+            videos = videos
+                .Where(info => info.AudioBitrate == bestBitRate);
+            VideoInfo video = videos.First();
+            foreach (VideoInfo info in videos) // this sellects .mp3 files first and then .aac files and finaly .ogg
+            {
+                if (info.AudioType == AudioType.Mp3)
+                {
+                    video = info;
+                }
+                else if (info.AudioType == AudioType.Aac && (video.AudioType != AudioType.Mp3))
+                {
+                    video = info;
+                }
+            }
+            if (video.RequiresDecryption)
+            {
+                DownloadUrlResolver.DecryptDownloadUrl(video);
+            }
+            return video;
+        }
 
+        private string getFileName(VideoInfo video)
+        {
+            string videoTitle = RemoveIllegalPathCharacters(video.Title);
+            string fileName = "Error";
+                switch (video.AudioType)
+                {
+                    case AudioType.Aac:
+                        fileName = videoTitle + ".mp4";
+                        break;
+                    case AudioType.Mp3:
+                        fileName = videoTitle + ".mp3";
+                        break;
+                    case AudioType.Vorbis:
+                        MessageBox.Show("Warning: .ogg file, will need to be converted");
+                        fileName = videoTitle + ".mp3";
+                        break;
+                    case AudioType.Unknown:
+                        throw new Exception("DownloadProgress.cs: AudioType Unknown");
+                }
+            return fileName;
+        }
+
+        delegate void SetInfoLableCallback(string message);
+        private void SetInfoLable(string message)
+        {
+            if (InfoLabel.InvokeRequired)
+            {
+                SetInfoLableCallback d = new SetInfoLableCallback(SetInfoLable);
+                this.InfoLabel.Invoke(d, new object[] { message });
+            }
+            else
+            {
+                InfoLabel.Text = message;
+            }
+        }
+
+        #endregion
+
+        #region Second Degree Helpers
         private static string RemoveIllegalPathCharacters(string path)
         {
             string regexSearch = new string(Path.GetInvalidFileNameChars()) + new string(Path.GetInvalidPathChars());
@@ -352,39 +330,12 @@ namespace WindowsFormsApplication1
             MessageBox.Show("Found Playlist: " + PlaylistId);
             return PLAYLIST_URL + PlaylistId;
         }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="search"></param>
-        /// <returns>Returns True if playlist handled</returns>
-        private bool handleSearch(string search)
-        {
-            if (search.StartsWith("http://") || search.StartsWith("https://") || search.StartsWith("www.")) //not sure if https:// will work
-            {
-                if (search.Contains("/playlist?list="))
-                {
-                    playlistHelper(search);
-                    return true;
-                }
-            }
-            else
-            {
-                if (search.Contains("playlist"))
-                {
-                    DialogResult dialogResult = MessageBox.Show("Would you like to download the playlist?", "Download Playlist", MessageBoxButtons.YesNo);
-                    if (dialogResult == DialogResult.Yes)
-                    {
-                        playlistHelper(getPlaylistUrl(search));
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
+        
 
         private void playlistHelper(string PlaylistUrl)
         {
+            if (PlaylistDetected != null)
+                PlaylistDetected(this, PlaylistUrl);
             string html = downloadString(PlaylistUrl);
             List<string> videoIDs = getVideoIDsFromPlaylist(downloadString(PlaylistUrl));
             DialogResult dialogResult =
@@ -395,18 +346,8 @@ namespace WindowsFormsApplication1
                 foreach (string id in videoIDs)
                 {
                     string videoUrl = YOUTUBE_VIDEO_URL + id;
-                    if (_masterform.InvokeRequired)
-                    {
-                        _masterform.BeginInvoke(
-                            new Action(() =>
-                            {
-                                _masterform.AddOrQueueRaindrop(videoUrl);
-                            }));
-                    }
-                    else
-                    {
-                        _masterform.AddOrQueueRaindrop(videoUrl);
-                    }
+                    if (VideoFromPlaylistUrlFound != null)
+                        VideoFromPlaylistUrlFound(this, videoUrl);
                 }
             }
         }
@@ -466,6 +407,24 @@ namespace WindowsFormsApplication1
         {
             return search.Trim().Replace(' ', '+');
         }
+
+        private void Dispose()
+        {
+            if (MainPanel.InvokeRequired)
+            {
+                MainPanel.BeginInvoke(
+                    new Action(() =>
+                    {
+                        MainPanel.Dispose();
+                    }));
+            }
+            else
+            {
+                MainPanel.Dispose();
+            }
+        }
+        #endregion
+
         #endregion
 
         #region InitializeComponent
@@ -517,12 +476,6 @@ namespace WindowsFormsApplication1
             this.progressBar.Name = "progressBar";
             this.progressBar.Size = new System.Drawing.Size(362, 18);
             this.progressBar.TabIndex = 3;
-
-            _masterform.BeginInvoke(
-                new Action(() =>
-                {
-                    _masterform.Controls.Add(this.MainPanel);
-                }));
             this.MainPanel.ResumeLayout(false);
             this.MainPanel.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.CancelPictureBox)).EndInit();
