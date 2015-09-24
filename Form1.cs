@@ -1,5 +1,5 @@
 ﻿//Errors: 
-//when downloading playlists and max raidrops is set to 3, 4 will download - seems to be fixed
+//all threads not stopped
 //
 //
 
@@ -21,7 +21,7 @@ namespace WindowsFormsApplication1
     public partial class form1 : Form
     {
         #region Constants
-        private static readonly Point PROGRESS_FORM_LOCATION = new Point(490, 10);
+        private static readonly Point YOUTUBE_DOWNLOAD_CONTROL_LOCATION = new Point(490, 10);
         private const int EXPANDED_WIDTH = 950;
         private const int DEFAULT_WIDTH = 500;
         private const int DEFAULT_HEIGHT = 470;
@@ -29,42 +29,59 @@ namespace WindowsFormsApplication1
         private const int TAG_FORM_HEIGHT = 136;
         private static readonly Size DEFAULT_SIZE = new Size(500, 470);
         private const int COMPLETED_HEADER_HEIGHT = 30;
-        //private Size EXPANDED_SIZE = new Size(950, 438);
-        private const int Y_DISTANCE_BETWEEN_WINDOWS = 48;
+        private const int Y_DISTANCE_BETWEEN_DOWNLOAD_CONTROLS = 48;
         private const int MAXIMUM_ALLOWED_RAINDROPS = 10;
+
+        //private Size EXPANDED_SIZE = new Size(950, 438);
         #endregion
 
         #region Private Variables
-        private Point ProgressFormLocation;
         private int formHeight = DEFAULT_HEIGHT;
         private Point CompletedDownloadLocation;
-        private List<YoutubeDownload> Downloads = new List<YoutubeDownload>(3);
         private List<string> YoutubeVideoID = new List<string>(5);
-        private List<string> _queue = new List<string>(3);
-        private int _maxRainDrops;
         private Size _size;
         private MediaHandler mediaHandler;
+        private DownloadsHandler downloadsHandler;
         #endregion
 
         #region Public Variables
         public List<CompletedDownload> Completed = new List<CompletedDownload>(3);
         #endregion
 
+        #region Constructor
         public form1()
         {
             InitializeComponent();
-            _maxRainDrops = Int32.Parse(MaxRainDropBox.Text);
-            ProgressFormLocation = PROGRESS_FORM_LOCATION;
+            
             CompletedDownloadLocation = COMPLETED_FILE_LOCATION;
             Size = DEFAULT_SIZE;
-            loadSettings();
+            
             mediaHandler = new MediaHandler(this);
+            downloadsHandler = new DownloadsHandler(this, YOUTUBE_DOWNLOAD_CONTROL_LOCATION, Y_DISTANCE_BETWEEN_DOWNLOAD_CONTROLS);
+            downloadsHandler.YoutubeDownloadStarted += new DownloadsHandler.passDownloadEvent(downloadsHandler_YoutubeDownloadStarted);
+            downloadsHandler.LastDownloadCompletedEvent += new DownloadsHandler.simpleEvent(downloadsHandler_LastDownloadCompletedEvent);
+            downloadsHandler.NumberOfSimultaneousDownloadsAllowed = 3;
+
+            loadSettings();
         }
-        
+        #endregion
+
         #region Events
 
-        //private void Notification(object sender, string message, YoutubeDownload.AdditionAction action);
+        #region DownloadsHandler Events
+        private void downloadsHandler_YoutubeDownloadStarted(object sender, YoutubeDownload download)
+        {
+            download.VideoFromPlaylistUrlFound += new YoutubeDownload.foundUrlEvent(YoutubeDownload_VideoFromPlaylistUrlFound);
+            download.NotificationEvent += new YoutubeDownload.InfoEvent(YoutubeDownload_NotificationEvent);
+        }
 
+        private void downloadsHandler_LastDownloadCompletedEvent(object sender)
+        {
+            srinkForm();
+        }
+        #endregion
+
+        #region MainForm Events
         private void RainButton_Click(object sender, EventArgs e)
         {
             if (!Directory.Exists(BucketPathTB.Text))
@@ -81,7 +98,7 @@ namespace WindowsFormsApplication1
 
             foreach (string line in InputTextBox.Lines)
             {
-                AddOrQueueRaindrop(line);
+                downloadsHandler.AddOrQueueDownload(line, BucketPathTB.Text);
             }
         }
         
@@ -98,12 +115,11 @@ namespace WindowsFormsApplication1
         {
             HelpAboutForm HelpForm = new HelpAboutForm();
             HelpForm.Show();
-
         }
 
         private void MaxRainDropBox_SelectedIndexChanged(object sender, EventArgs e)
         {
-            _maxRainDrops = MaxRainDropBox.SelectedIndex + 1;
+            downloadsHandler.NumberOfSimultaneousDownloadsAllowed = MaxRainDropBox.SelectedIndex + 1;
         }
 
         private void BucketPathTB_DoubleClick(object sender, EventArgs e)
@@ -119,41 +135,46 @@ namespace WindowsFormsApplication1
 
         private void form1_FormClosing(object sender, FormClosingEventArgs e)
         {
-            foreach (YoutubeDownload downloadProgressPanel in Downloads)
-            {
-                downloadProgressPanel.exit();
-            }
+            downloadsHandler.CloseAll();
             saveSettings();
-            
         }
+        #endregion
 
-        private void DownloadProgress_NotificationEvent(object sender, string message, YoutubeDownload.AdditionAction action)
+        #region YoutubeDownload
+        private void YoutubeDownload_NotificationEvent(object sender, string message, YoutubeDownload.AdditionAction action)
         {
-            DownloadProgress_NotificationEvent_Sync((YoutubeDownload)sender, message, action);
+            YoutubeDownload_NotificationEvent_Sync((YoutubeDownload)sender, message, action);
         }
 
-        delegate void NotificationCallback(YoutubeDownload sender, string message, YoutubeDownload.AdditionAction action);
+        private void YoutubeDownload_VideoFromPlaylistUrlFound(object sender, string url)
+        {
+            YoutubeDownload_VideoFromPlaylistUrlFound_Sync(sender, url);
+        }
+        #endregion
 
-        private void DownloadProgress_NotificationEvent_Sync(YoutubeDownload sender, string message, YoutubeDownload.AdditionAction action)
+        #region YoutubeDownload Callbacks
+        delegate void NotificationCallback(YoutubeDownload sender, string message, YoutubeDownload.AdditionAction action);
+        private void YoutubeDownload_NotificationEvent_Sync(YoutubeDownload sender, string message, YoutubeDownload.AdditionAction action)
         {
             if (this.InvokeRequired)
             {
-                NotificationCallback d = new NotificationCallback(DownloadProgress_NotificationEvent_Sync);
+                NotificationCallback d = new NotificationCallback(YoutubeDownload_NotificationEvent_Sync);
                 this.Invoke(d, new object[] { sender, message, action });
             }
             else
             {
-                displayMessage(message);
+                if (message != "") 
+                    displayMessage(message);
                 switch (action)
                 {
                     case YoutubeDownload.AdditionAction.Close:
-                        YoutubeDowloadClose(sender);
+                        downloadsHandler.YoutubeDownloadClose(sender);
                         break;
                     case YoutubeDownload.AdditionAction.Complete:
                         DownloadComplete(sender);
                         break;
                     case YoutubeDownload.AdditionAction.Exception:
-                        YoutubeDowloadClose(sender);
+                        downloadsHandler.YoutubeDownloadClose(sender);
                         break;
                     case YoutubeDownload.AdditionAction.None:
                         break;
@@ -163,30 +184,21 @@ namespace WindowsFormsApplication1
             }
         }
 
-        private void DownloadProgress_VideoFromPlaylistUrlFound(object sender, string url)
-        {
-            DownloadProgress_VideoFromPlaylistUrlFound_Sync(url);
-        }
-
-        delegate void Callback(string url);
-        private void DownloadProgress_VideoFromPlaylistUrlFound_Sync(string url)
+        delegate void Callback(object sender, string url);
+        private void YoutubeDownload_VideoFromPlaylistUrlFound_Sync(object sender, string url)
         {
             if (this.InvokeRequired)
             {
                 Callback d
-                    = new Callback(DownloadProgress_VideoFromPlaylistUrlFound_Sync);
-                this.Invoke(d, new object[] { url });
+                    = new Callback(YoutubeDownload_VideoFromPlaylistUrlFound_Sync);
+                this.Invoke(d, new object[] { sender, url });
             }
             else
             {
-                AddOrQueueRaindrop(url);
+                downloadsHandler.AddOrQueueDownload(url, BucketPathTB.Text);
             }
         }
-
-
-        private void form1_Resize(object sender, EventArgs e)
-        {
-        }
+        #endregion
 
         #endregion
 
@@ -200,10 +212,10 @@ namespace WindowsFormsApplication1
             }
             if (Properties.Settings.Default.MaxRainDrops > 0 && Properties.Settings.Default.MaxRainDrops <= MAXIMUM_ALLOWED_RAINDROPS)
             {
-                _maxRainDrops = Properties.Settings.Default.MaxRainDrops;
+                downloadsHandler.NumberOfSimultaneousDownloadsAllowed = Properties.Settings.Default.MaxRainDrops;
                 try
                 {
-                    MaxRainDropBox.SelectedIndex = _maxRainDrops - 1;
+                    MaxRainDropBox.SelectedIndex = downloadsHandler.NumberOfSimultaneousDownloadsAllowed - 1;
                 }
                 catch (Exception) { }
             }
@@ -212,91 +224,29 @@ namespace WindowsFormsApplication1
         private void saveSettings()
         {
             Properties.Settings.Default.Bucket = BucketPathTB.Text;
-            Properties.Settings.Default.MaxRainDrops = _maxRainDrops;
+            Properties.Settings.Default.MaxRainDrops = downloadsHandler.NumberOfSimultaneousDownloadsAllowed;
             Properties.Settings.Default.Save(); 
         }
 
         #endregion
 
-        #region For Progress Panels
-
-        public void AddOrQueueRaindrop(string search)
-        {
-            string _search = search.Trim();
-            if (_search != "")
-            {
-                if (Downloads.Count < _maxRainDrops)
-                {
-                    addRainDrop(_search);
-                }
-                else
-                {
-                    _queue.Add(_search);
-                }
-            }
-        }
-
-        private void addRainDrop(string url)
-        {
-            YoutubeDownload temp = new YoutubeDownload();
-            temp.Location = ProgressFormLocation;
-            temp.Start(BucketPathTB.Text, url);
-            temp.NotificationEvent +=new YoutubeDownload.InfoEvent(DownloadProgress_NotificationEvent);
-            temp.VideoFromPlaylistUrlFound += new YoutubeDownload.foundUrlEvent(DownloadProgress_VideoFromPlaylistUrlFound);
-            this.Controls.Add(temp); 
-            Downloads.Add(temp);
-            
-            ProgressFormLocation.Y += Y_DISTANCE_BETWEEN_WINDOWS;
-        }
+        #region Downloads
 
         public void displayMessage(string message)
         {
             ResultRTB.Text += message + "\r\n";
         }
 
-        public void YoutubeDowloadClose(YoutubeDownload downloadProgressPanel)
-        {
-            if (downloadProgressPanel != null)
-            {
-                Downloads.Remove(downloadProgressPanel);
-                downloadProgressPanel.exit();
-                ProgressFormLocation.Y -= Y_DISTANCE_BETWEEN_WINDOWS;
-                if (_queue.Count != 0)
-                {
-                    addRainDrop(_queue.First());
-                    _queue.RemoveAt(0);
-
-                }
-                if (Downloads.Count == 0)
-                    srinkForm();
-                else
-                    organizeDownloadForms();
-            }
-        }
-
         public void DownloadComplete(YoutubeDownload downloadProgressPanel)
         {
-            YoutubeDowloadClose(downloadProgressPanel);
-            if (formHeight == DEFAULT_HEIGHT)
-            {
-                formHeight += COMPLETED_HEADER_HEIGHT;
-            }
-            formHeight += CompletedDownload.HEIGHT;
+            downloadsHandler.YoutubeDownloadClose(downloadProgressPanel);
+            
             ExpandFormHeight();
 
             Completed.Add(new CompletedDownload(this, downloadProgressPanel.DownloadDirectory, downloadProgressPanel.FileName, CompletedDownloadLocation));
             CompletedDownloadLocation.Y += CompletedDownload.HEIGHT;
         }
 
-        private void organizeDownloadForms()
-        {
-            ProgressFormLocation = PROGRESS_FORM_LOCATION;
-            foreach (YoutubeDownload downloadProgressPanel in Downloads)
-            {
-                downloadProgressPanel.Location = ProgressFormLocation;
-                ProgressFormLocation.Y += Y_DISTANCE_BETWEEN_WINDOWS;
-            }
-        }
         #endregion
 
         #region Expand/Srink Form
@@ -314,6 +264,11 @@ namespace WindowsFormsApplication1
         }
         private void ExpandFormHeight()
         {
+            if (formHeight == DEFAULT_HEIGHT)
+            {
+                formHeight += COMPLETED_HEADER_HEIGHT;
+            }
+            formHeight += CompletedDownload.HEIGHT;
             _size.Width = Size.Width;
             _size.Height = formHeight;
             Size = _size;

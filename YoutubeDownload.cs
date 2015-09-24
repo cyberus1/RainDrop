@@ -35,10 +35,31 @@ namespace WindowsFormsApplication1
         #endregion
 
         #region Private Variables
-        private string _searchTerm;
-        //private Point _location;
-        private Thread downloadThread;
+        private string _searchTerm;        
         private bool _isClosing = false;
+        private WebClient webClient = new WebClient();
+
+        /// <summary>
+        /// Passes a url to donwload thread
+        /// </summary>
+        private volatile string _url; 
+        /// <summary>
+        /// passes the mtml document recieved by the webclient between threads
+        /// </summary>
+        private volatile string _htmlDoc;
+
+        private enum DownloadReason
+        {
+            getYoutubeUrl,
+            getPlaylistUrl,
+            playlistHelper
+        }
+        
+        private Thread SearchThread;
+        private Thread FinishGetYoutubeUrlThread;
+        private Thread FinishGetPlaylistUrlThread;
+        private Thread FinishPlaylistHelperThread;
+        private Thread downloadThread;
         #endregion
 
         #region Get/Set
@@ -54,21 +75,31 @@ namespace WindowsFormsApplication1
         }
         #endregion
 
+        #region Constructor
         public YoutubeDownload()
         {
             InitializeComponent();
+            webClient.DownloadStringCompleted += new DownloadStringCompletedEventHandler(webClient_DownloadStringCompleted);
+
+            SearchThread = new Thread(new ThreadStart(SearchFunction));
+            FinishGetYoutubeUrlThread = new Thread(new ThreadStart(FinishGetYoutubeUrlFunction));
+            FinishGetPlaylistUrlThread = new Thread(new ThreadStart(FinishGetPlaylistUrlFunction));
+            FinishPlaylistHelperThread = new Thread(new ThreadStart(FinishPlaylistHelperFunction));
+            downloadThread = new Thread(new ThreadStart(download));
         }
+        #endregion
+
+        #region ThreadFunctions
 
         #region DownloadThread
         private void download()
         {
             try
             {
-                string url = handleSearch(_searchTerm);
 
-                Notify("Found URL: " + url, AdditionAction.None);
+                Notify("Found URL: " + _url, AdditionAction.None);
 
-                VideoInfo video = getVideo(url);
+                VideoInfo video = getVideo(_url);
 
                 FileName = getFileName(video);
 
@@ -77,8 +108,6 @@ namespace WindowsFormsApplication1
                     Notify("File Already Exist: " + FileName, AdditionAction.Complete); //switched to complete
                     return;
                 }
-
-                //downloadComplete = false;
 
                 var audioDownloader = new AudioDownloader(video, Path.Combine(DownloadDirectory, FileName));
 
@@ -103,7 +132,7 @@ namespace WindowsFormsApplication1
                 SetInfoLable(FileName);
 
                 audioDownloader.Execute();
-                //downloadComplete = true; 
+
                 Notify("Completed Download of: " + FileName, AdditionAction.Complete);
                 return;
             }
@@ -111,34 +140,107 @@ namespace WindowsFormsApplication1
             {
                 try
                 {
-                    Notify("Download Canceled: Exception Thrown: " + ex.ToString(), AdditionAction.Exception);
+                    if (ex.GetType() == typeof(YoutubeParseException))
+                    {
+                        Notify("Download Canceled: YoutubeParseException", AdditionAction.Exception);
+                    }
+                    else
+                    {
+                        Notify("Download Canceled: Exception Thrown: " + ex.ToString(), AdditionAction.Exception);
+                    }
                 }
                 catch (Exception) { }
             }
         }
         #endregion
 
+        #region Other Threads
+        private void SearchFunction()
+        {
+            handleSearch(_searchTerm);
+        }
+
+        private void FinishGetYoutubeUrlFunction()
+        {
+            _url = continueGetYoutubeUrl(_htmlDoc);
+
+            downloadThread.Start();
+        }
+        private void FinishGetPlaylistUrlFunction()
+        {
+            string url = continueGetPlaylistUrl(_htmlDoc);
+
+            playlistHelper(url);
+        }
+        private void FinishPlaylistHelperFunction()
+        {
+            continuePlaylistHelper(_htmlDoc);
+        }
+        #endregion
+
+        #endregion
+
         #region Public Methods
 
         public void Start(string dowloadDirectory, string searchTerm)
         {
+            if (Started != null)
+                Started(this);
             DownloadDirectory = dowloadDirectory;
             _searchTerm = searchTerm;
             InfoLabel.Text = "Searching for: " + _searchTerm;
 
-            downloadThread = new Thread(new ThreadStart(download));
-            downloadThread.Start();
+            SearchThread.Start();
         }
 
         public void exit()
         {
-            //if (File.Exists(_fileName) && !downloadComplete)
-            //{
-            //    File.Delete(Path.Combine(_bucket, _fileName));
-            //}
+            try { webClient.CancelAsync(); }
+            catch { }
+            try { downloadThread.Abort(); }
+            catch { }
+            //try { FinishPlaylistHelperThread.Abort(); }
+            //catch { }
+            try { FinishGetPlaylistUrlThread.Abort(); }
+            catch { }
+            try { FinishGetYoutubeUrlThread.Abort(); }
+            catch { }
+            try { SearchThread.Abort(); }
+            catch { }
             Dispose();
         }
 
+        #endregion
+
+        #region Events
+        private void CancelPictureBox_Click(object sender, EventArgs e)
+        {
+            Notify("Download Cancled by user.", AdditionAction.Close);
+        }
+
+        private void webClient_DownloadStringCompleted(object sender, DownloadStringCompletedEventArgs e)
+        {
+            try
+            {
+                _htmlDoc = e.Result;
+                switch ((DownloadReason)e.UserState)
+                {
+                    case DownloadReason.getPlaylistUrl:
+                        FinishGetPlaylistUrlThread.Start();
+                        break;
+                    case DownloadReason.getYoutubeUrl:
+                        FinishGetYoutubeUrlThread.Start();
+                        break;
+                    case DownloadReason.playlistHelper:
+                        FinishPlaylistHelperThread.Start();
+                        break;
+                }
+            }
+            catch (Exception)
+            {
+                Notify("Web Client Exception thrown", AdditionAction.Close);
+            }
+        }
         #endregion
 
         #region New Events
@@ -150,6 +252,9 @@ namespace WindowsFormsApplication1
         public event foundUrlEvent PlaylistDetected;
         [Browsable(true)]
         public event foundUrlEvent VideoFromPlaylistUrlFound;
+        public delegate void simpleEvent(object sender);
+        [Browsable(true)]
+        public event simpleEvent Started;
         #endregion
 
         #region Helpers
@@ -180,14 +285,26 @@ namespace WindowsFormsApplication1
                 NotificationEvent(this, message, action);
         }
 
-        private string handleSearch(string search)
+
+        private void handleSearch(string search)
         {
             if (search.StartsWith("http://") || search.StartsWith("https://") || search.StartsWith("www.")) //not sure if https:// will work
             {
+                if (search.StartsWith("www."))
+                {
+                    search = "http://" + search;
+                }
                 if (search.Contains("/playlist?list="))
                 {
                     playlistHelper(search);
-                    Notify("Playlist Downloading", AdditionAction.Close);
+                    //Notify("Playlist Downloading", AdditionAction.Close);
+                    return;
+                }
+                else
+                {
+                    _url = search;
+                    downloadThread.Start();
+                    return;
                 }
             }
             else
@@ -197,12 +314,13 @@ namespace WindowsFormsApplication1
                     DialogResult dialogResult = MessageBox.Show("Would you like to download the playlist?", "Download Playlist", MessageBoxButtons.YesNo);
                     if (dialogResult == DialogResult.Yes)
                     {
-                        playlistHelper(getPlaylistUrl(search));
-                        Notify("Playlist Downloading", AdditionAction.Close);
+                        getPlaylistUrl(search);
+                        //Notify("Playlist Downloading", AdditionAction.Close);
+                        return;
                     }
                 }
+                getYoutubeUrl(search);
             }
-            return getYoutubeUrl(search);
         }
 
         private VideoInfo getVideo(string url)
@@ -271,6 +389,7 @@ namespace WindowsFormsApplication1
         #endregion
 
         #region Second Degree Helpers
+
         private static string RemoveIllegalPathCharacters(string path)
         {
             string regexSearch = new string(Path.GetInvalidFileNameChars()) + new string(Path.GetInvalidPathChars());
@@ -278,29 +397,14 @@ namespace WindowsFormsApplication1
             return r.Replace(path, "");
         }
 
-        private string getYoutubeUrl(string search)
+        private void getYoutubeUrl(string search)
         {
-            string html = downloadString(YOUTUBE_SEARCH_URL + replaceSpaceWithPlus(search));
-            int startOfVideoId = html.IndexOf(YOUTUBE_SEARCH_THIRD_STRING, html.IndexOf(YOUTUBE_SEARCH_SECOND_STRING, html.IndexOf(YOUTUBE_SEARCH_FIRST_STRING))) + YOUTUBE_SEARCH_THIRD_STRING.Length;
-            int endOfVideoId = html.IndexOf('\"', startOfVideoId);
-            string videoId = html.Substring(startOfVideoId, endOfVideoId - startOfVideoId);
-
-            return YOUTUBE_VIDEO_URL + videoId;
+            downloadString(YOUTUBE_SEARCH_URL + replaceSpaceWithPlus(search), DownloadReason.getYoutubeUrl);
         }
 
-
-        private string getPlaylistUrl(string search)
+        private void getPlaylistUrl(string search)
         {
-            const string PLAYLIST_URL = "http://www.youtube.com/playlist?list=";
-            const string FIRST_SEARCH_STRING = "<div class=\"yt-lockup yt-lockup-tile";
-            const string SECOND_SEARCH_STRING = "<h3 class=\"yt-lockup-title \">";
-            const string THIRD_SEARCH_STRING = "?list=";
-            string html = downloadString(YOUTUBE_SEARCH_URL + replaceSpaceWithPlus(search));
-            int startOfPlaylistId = html.IndexOf(THIRD_SEARCH_STRING, html.IndexOf(SECOND_SEARCH_STRING, html.IndexOf(FIRST_SEARCH_STRING))) + THIRD_SEARCH_STRING.Length;
-            int endOfPlaylistId = html.IndexOf('\"', startOfPlaylistId);
-            string PlaylistId = html.Substring(startOfPlaylistId, endOfPlaylistId - startOfPlaylistId);
-            //MessageBox.Show("Found Playlist: " + PlaylistId);
-            return PLAYLIST_URL + PlaylistId;
+            downloadString(YOUTUBE_SEARCH_URL + replaceSpaceWithPlus(search), DownloadReason.getPlaylistUrl);
         }
 
 
@@ -308,20 +412,7 @@ namespace WindowsFormsApplication1
         {
             if (PlaylistDetected != null)
                 PlaylistDetected(this, PlaylistUrl);
-            string html = downloadString(PlaylistUrl);
-            List<string> videoIDs = getVideoIDsFromPlaylist(downloadString(PlaylistUrl));
-            DialogResult dialogResult =
-                MessageBox.Show("Would you like to download all " + videoIDs.Count.ToString() + " videos found in playlist: \"" + getPlaylistName(html) + "\"?",
-                "Download Playlist", MessageBoxButtons.YesNo);
-            if (dialogResult == DialogResult.Yes)
-            {
-                foreach (string id in videoIDs)
-                {
-                    string videoUrl = YOUTUBE_VIDEO_URL + id;
-                    if (VideoFromPlaylistUrlFound != null)
-                        VideoFromPlaylistUrlFound(this, videoUrl);
-                }
-            }
+            downloadString(PlaylistUrl, DownloadReason.playlistHelper);
         }
 
 
@@ -367,13 +458,12 @@ namespace WindowsFormsApplication1
             return VideoIDs;
         }
 
-        private string downloadString(string url)
+
+        private void downloadString(string url, DownloadReason downloadReason)
         {
-            using (var client = new WebClient())
-            {
-                client.Encoding = System.Text.Encoding.UTF8;
-                return client.DownloadString(url);
-            }
+            webClient.Encoding = System.Text.Encoding.UTF8;
+            Uri uri = new Uri(url);
+            webClient.DownloadStringAsync(uri, downloadReason);
         }
         private string replaceSpaceWithPlus(string search)
         {
@@ -381,14 +471,50 @@ namespace WindowsFormsApplication1
         }
         #endregion
 
-        #endregion
-
-        #region Events
-        private void CancelPictureBox_Click(object sender, EventArgs e)
+        #region Continue Functions
+        private string continueGetPlaylistUrl(string htmlDoc)
         {
-            //Notify("Download Cancled by user.", AdditionAction.Close);
+            const string PLAYLIST_URL = "http://www.youtube.com/playlist?list=";
+            const string FIRST_SEARCH_STRING = "<div class=\"yt-lockup yt-lockup-tile";
+            const string SECOND_SEARCH_STRING = "<h3 class=\"yt-lockup-title \">";
+            const string THIRD_SEARCH_STRING = "?list=";
+            int startOfPlaylistId = htmlDoc.IndexOf(THIRD_SEARCH_STRING, htmlDoc.IndexOf(SECOND_SEARCH_STRING, htmlDoc.IndexOf(FIRST_SEARCH_STRING))) + THIRD_SEARCH_STRING.Length;
+            int endOfPlaylistId = htmlDoc.IndexOf('\"', startOfPlaylistId);
+            string PlaylistId = htmlDoc.Substring(startOfPlaylistId, endOfPlaylistId - startOfPlaylistId);
+            return PLAYLIST_URL + PlaylistId;
+        }
+        private string continueGetYoutubeUrl(string htmlDoc)
+        {
+            int startOfVideoId = htmlDoc.IndexOf(YOUTUBE_SEARCH_THIRD_STRING, htmlDoc.IndexOf(YOUTUBE_SEARCH_SECOND_STRING, htmlDoc.IndexOf(YOUTUBE_SEARCH_FIRST_STRING))) + YOUTUBE_SEARCH_THIRD_STRING.Length;
+            int endOfVideoId = htmlDoc.IndexOf('\"', startOfVideoId);
+            string videoId = htmlDoc.Substring(startOfVideoId, endOfVideoId - startOfVideoId);
+            return YOUTUBE_VIDEO_URL + videoId;
+        }
+        private void continuePlaylistHelper(string htmlDoc)
+        {
+            List<string> videoIDs = getVideoIDsFromPlaylist(htmlDoc);
+            DialogResult dialogResult =
+                MessageBox.Show("Would you like to download all " + videoIDs.Count.ToString() + " videos found in playlist: \"" + getPlaylistName(htmlDoc) + "\"?",
+                "Download Playlist", MessageBoxButtons.YesNo);
+            if (dialogResult == DialogResult.Yes)
+            {
+                Notify("Playlist Downloading", AdditionAction.None);
+                foreach (string id in videoIDs)
+                {
+                    string videoUrl = YOUTUBE_VIDEO_URL + id;
+                    if (VideoFromPlaylistUrlFound != null)
+                        VideoFromPlaylistUrlFound(this, videoUrl);
+                }
+                Notify("", AdditionAction.Close);
+
+            }
+            Notify("Playlist Download Canceled", AdditionAction.Close);
         }
         #endregion
+
+        #endregion
+
+        
 
     }
 }

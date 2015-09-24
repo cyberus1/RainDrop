@@ -246,7 +246,6 @@
             this.Name = "form1";
             this.Text = "RainDrop - Condensing the Cloud";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.form1_FormClosing);
-            this.Resize += new System.EventHandler(this.form1_Resize);
             this.panel1.ResumeLayout(false);
             this.panel1.PerformLayout();
             this.panel2.ResumeLayout(false);

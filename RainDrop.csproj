@@ -67,6 +67,7 @@
     <Compile Include="CompletedDownload.cs" />
     <Compile Include="Decipherer.cs" />
     <Compile Include="Downloader.cs" />
+    <Compile Include="DownloadsHandler.cs" />
     <Compile Include="DownloadUrlResolver.cs" />
     <Compile Include="EditPanel.cs">
       <SubType>Component</SubType>
