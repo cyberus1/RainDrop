@@ -334,19 +334,13 @@ namespace WindowsFormsApplication1
         {
             if (this.InvokeRequired)
             {
-                case AdditionAction.None:
-                    break;
-                case AdditionAction.Complete:
-                    _isClosing = true;
-                    break;
-                case AdditionAction.Close:
-                    _isClosing = true;
-                    break;
-                case AdditionAction.Exception:
-                    _isClosing = true;
-                    break;
-                default:
-                    throw new Exception("YoutubeDownload Notify exception");
+                voidCallback d = new voidCallback(DisposeCallBack);
+                this.Invoke(d);
+            }
+            else
+            {
+                webClient.CancelAsync();
+                this.Dispose();
             }
         }
 
