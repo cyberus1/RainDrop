@@ -19,11 +19,9 @@ namespace WindowsFormsApplication1
         private Form _masterform;
         private Point _downloadLocation;
         private Point _initialDownloadLocation;
-        //private Point CompletedDownloadLocation;
         private List<YoutubeDownload> Downloads = new List<YoutubeDownload>(3);
         //private List<string> YoutubeVideoID = new List<string>(5);
-        private List<YoutubeDownloadInfo> _queue = new List<YoutubeDownloadInfo>(3);
-        //private int _maxRainDrops;
+        private List<YoutubeDownloadQueueInfo> _queue = new List<YoutubeDownloadQueueInfo>(3);
         private int _NumberOfSimultaneousDownloadsAllowed;
         private int _VirticalDistanceBetweenDownloadControls;
         #endregion
@@ -51,11 +49,42 @@ namespace WindowsFormsApplication1
         }
         #endregion
 
+        #region Events
+        private void YoutubeDownload_VideoFromPlaylistUrlFound(object sender, UrlFoundEventArgs e)
+        {
+            AddOrQueueDownload(e.URL, e.DownloadDirectory);
+        }
+        private void YoutubeDownload_NotificationEvent(object sender, NotificationEventArgs e)
+        {
+            if (e.Message != "")
+            {
+                if (MessageEvent != null)
+                    MessageEvent(this, new MessageEventArgs(e.YoutubeDownloadInfo, e.Message));
+            }
+        }
+        private void YoutubeDownload_DownloadComplete(object sender, DownloadCompleteEventArgs e)
+        {
+            if (YoutubeDownloadComplete != null)
+                YoutubeDownloadComplete(this, new YoutubeDownloadCompleteEventArgs(e.FileName, e.DownloadDirectory));
+        }
+        private void YoutubeDownload_DownloadClosing(object sender, DownloadClosingEventArgs e)
+        {
+            Downloads.Remove((YoutubeDownload)sender); //may require invoke
+
+            DownloadClosed();
+        }
+
+        #endregion
+
         #region New Events
         public delegate void simpleEvent(object sender);
         public event simpleEvent LastDownloadCompletedEvent;
-        public delegate void passDownloadEvent(object sender, YoutubeDownload download);
-        public event passDownloadEvent YoutubeDownloadStarted;
+        public delegate void YoutubeDownloadStartedEvent(object sender, YoutubeDownloadStartedEventArgs e);
+        public event YoutubeDownloadStartedEvent YoutubeDownloadStarted;
+        public delegate void messageEvent(object sender, MessageEventArgs e);
+        public event messageEvent MessageEvent;
+        public delegate void YoutubeDownloadCompleteEvent(object sender, YoutubeDownloadCompleteEventArgs e);
+        public event YoutubeDownloadCompleteEvent YoutubeDownloadComplete;
         #endregion
 
         #region Public Methods
@@ -70,30 +99,8 @@ namespace WindowsFormsApplication1
                 }
                 else
                 {
-                    _queue.Add(new YoutubeDownloadInfo(_search, downloadDirectory));
+                    _queue.Add(new YoutubeDownloadQueueInfo(search, downloadDirectory));
                 }
-            }
-        }
-        public void YoutubeDownloadClose(YoutubeDownload download)
-        {
-            if (download != null)
-            {
-                Downloads.Remove(download);
-                download.exit();
-                _downloadLocation.Y -= _VirticalDistanceBetweenDownloadControls;
-                if (_queue.Count != 0)
-                {
-                    addDownload(_queue.First().SearchTerm, _queue.First().DownloadDirectory);
-                    _queue.RemoveAt(0);
-
-                }
-                if (Downloads.Count == 0)
-                {
-                    if (LastDownloadCompletedEvent != null)
-                        LastDownloadCompletedEvent(this);
-                }
-                else
-                    organizeDownloadForms();
             }
         }
 
@@ -108,38 +115,94 @@ namespace WindowsFormsApplication1
 
         #region Helpers
 
+        private void DownloadClosed()
+        {
+            _downloadLocation.Y -= _VirticalDistanceBetweenDownloadControls;
+            if (_queue.Count != 0)
+            {
+                addDownload(_queue.First().SearchTerm, _queue.First().DownloadDirectory);
+                _queue.RemoveAt(0);
+
+            }
+            if (Downloads.Count == 0)
+            {
+                if (LastDownloadCompletedEvent != null)
+                    LastDownloadCompletedEvent(this);
+            }
+            else
+                organizeDownloadForms();
+        }
+        
         private void addDownload(string search, string downloadDirectory)
         {
             YoutubeDownload temp = new YoutubeDownload();
             temp.Location = _downloadLocation;
+            temp.VideoFromPlaylistUrlFound += new YoutubeDownload.FoundUrlEvent(YoutubeDownload_VideoFromPlaylistUrlFound);
+            temp.Notification += new YoutubeDownload.NotificationEvent(YoutubeDownload_NotificationEvent);
+            temp.DownloadClosing += new YoutubeDownload.DownloadClosingEvent(YoutubeDownload_DownloadClosing);
+            temp.DownloadComplete += new YoutubeDownload.DownloadCompleteEvent(YoutubeDownload_DownloadComplete);
             temp.Start(downloadDirectory, search);
             if (YoutubeDownloadStarted != null)
-                YoutubeDownloadStarted(this, temp);
-            _masterform.Controls.Add(temp);
+                YoutubeDownloadStarted(this, new YoutubeDownloadStartedEventArgs(downloadDirectory, search));
+            addControl(temp);
             Downloads.Add(temp);
             _downloadLocation.Y += _VirticalDistanceBetweenDownloadControls;
+            
         }
 
+        private delegate void addControlCallBack(YoutubeDownload download);
+        private void addControl(YoutubeDownload download)
+        {
+            if (_masterform.InvokeRequired)
+            {
+                addControlCallBack d = new addControlCallBack(addControl);
+                _masterform.Invoke(d, new object[] { download });
+            }
+            else
+            {
+                _masterform.Controls.Add(download);
+            }
+        }
         
-
         private void organizeDownloadForms()
         {
             _downloadLocation = _initialDownloadLocation;
             foreach (YoutubeDownload download in Downloads)
             {
-                download.Location = _downloadLocation;
+                moveDownload(download, _downloadLocation);
                 _downloadLocation.Y += _VirticalDistanceBetweenDownloadControls;
+            }
+        }
+        private delegate void moveDownloadDeligate(YoutubeDownload download, Point newLocation);
+        private void moveDownload(YoutubeDownload download, Point p)
+        {
+            if (download.InvokeRequired)
+            {
+                moveDownloadDeligate d = new moveDownloadDeligate(moveDownload);
+                download.Invoke(d, new object[] { download, p });
+            }
+            else
+            {
+                download.Location = p;
             }
         }
         #endregion
     }
 
-    #region YoutubeDownloadInfo
-    class YoutubeDownloadInfo
+    #region YoutubeDownloadQueueInfo
+    class YoutubeDownloadQueueInfo
     {
-        public string SearchTerm;
-        public string DownloadDirectory;
-        public YoutubeDownloadInfo(string searchTerm, string downloadDirectory)
+        public string SearchTerm
+        {
+            get;
+            protected set;
+        }
+        public string DownloadDirectory
+        {
+            get;
+            protected set;
+        }
+        public YoutubeDownloadQueueInfo(string searchTerm, string downloadDirectory)
         {
             SearchTerm = searchTerm;
             DownloadDirectory = downloadDirectory;
@@ -147,4 +210,68 @@ namespace WindowsFormsApplication1
     }
     #endregion
 
+    #region EventArgs
+    class YoutubeDownloadCompleteEventArgs
+    {
+        public string FileName
+        {
+            get;
+            protected set;
+        }
+        public string Directory
+        {
+            get;
+            protected set;
+        }
+        public string ID
+        {
+            get;
+            protected set;
+        }
+        public YoutubeDownloadCompleteEventArgs(string fileName, string directory, string id = null)
+        {
+            FileName = fileName;
+            Directory = directory;
+            if(id != null)
+                ID = id;
+        }
+    }
+    class MessageEventArgs
+    {
+        public YoutubeDownloadInfo SenderInfo //todo
+        {
+            get;
+            protected set;
+        }
+        public string Message
+        {
+            get;
+            protected set;
+        }
+        public MessageEventArgs(YoutubeDownloadInfo senderInfo, string message)
+        {
+            this.SenderInfo = senderInfo;
+            this.Message = message;
+        }
+    }
+
+    class YoutubeDownloadStartedEventArgs
+    {
+        public string DownloadDirectory
+        {
+            get;
+            protected set;
+        }
+        public string SearchTerm
+        {
+            get;
+            protected set;
+        }
+        public YoutubeDownloadStartedEventArgs(string downloadDirectory, string searchTerm)
+        {
+            this.DownloadDirectory = downloadDirectory;
+            this.SearchTerm = searchTerm;
+        }
+    }
+    #endregion
 }

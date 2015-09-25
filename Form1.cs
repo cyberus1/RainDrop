@@ -1,8 +1,7 @@
 ﻿//Errors: 
-//all threads not stopped
 //
 //
-
+//
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -58,8 +57,10 @@ namespace WindowsFormsApplication1
             
             mediaHandler = new MediaHandler(this);
             downloadsHandler = new DownloadsHandler(this, YOUTUBE_DOWNLOAD_CONTROL_LOCATION, Y_DISTANCE_BETWEEN_DOWNLOAD_CONTROLS);
-            downloadsHandler.YoutubeDownloadStarted += new DownloadsHandler.passDownloadEvent(downloadsHandler_YoutubeDownloadStarted);
+            //downloadsHandler.YoutubeDownloadStarted += new DownloadsHandler.passDownloadEvent(downloadsHandler_YoutubeDownloadStarted);
             downloadsHandler.LastDownloadCompletedEvent += new DownloadsHandler.simpleEvent(downloadsHandler_LastDownloadCompletedEvent);
+            downloadsHandler.MessageEvent += new DownloadsHandler.messageEvent(downloadsHandler_MessageEvent);
+            downloadsHandler.YoutubeDownloadComplete += new DownloadsHandler.YoutubeDownloadCompleteEvent(downloadsHandler_DownloadComplete);
             downloadsHandler.NumberOfSimultaneousDownloadsAllowed = 3;
 
             loadSettings();
@@ -69,16 +70,64 @@ namespace WindowsFormsApplication1
         #region Events
 
         #region DownloadsHandler Events
-        private void downloadsHandler_YoutubeDownloadStarted(object sender, YoutubeDownload download)
+        private void downloadsHandler_DownloadComplete(object sender, YoutubeDownloadCompleteEventArgs e)
         {
-            download.VideoFromPlaylistUrlFound += new YoutubeDownload.foundUrlEvent(YoutubeDownload_VideoFromPlaylistUrlFound);
-            download.NotificationEvent += new YoutubeDownload.InfoEvent(YoutubeDownload_NotificationEvent);
+            downloadsHandler_DownloadCompleteCallBack(e);
+        }
+
+        private void downloadsHandler_MessageEvent(object sender, MessageEventArgs e)
+        {
+            downloadsHandler_MessageEventCallBack(e); //I feel like i can remove somehow
         }
 
         private void downloadsHandler_LastDownloadCompletedEvent(object sender)
         {
-            srinkForm();
+            downloadsHandler_LastDownloadCompletedEventCallBack();
         }
+        #endregion
+
+        #region DonwloadsHandler Event Callbacks
+
+        private delegate void MessageEventCallBack(MessageEventArgs e);
+        private void downloadsHandler_MessageEventCallBack(MessageEventArgs e)
+        {
+            if (this.InvokeRequired)
+            {
+                MessageEventCallBack d = new MessageEventCallBack(downloadsHandler_MessageEventCallBack);
+                this.Invoke(d, new object[] { e });
+            }
+            else
+            {
+                displayMessage(e.Message);
+            }
+        }
+        private delegate void DownloadCompleteCallBack(YoutubeDownloadCompleteEventArgs e);
+        private void downloadsHandler_DownloadCompleteCallBack(YoutubeDownloadCompleteEventArgs e)
+        {
+            if (this.InvokeRequired)
+            {
+                DownloadCompleteCallBack d = new DownloadCompleteCallBack(downloadsHandler_DownloadCompleteCallBack);
+                this.Invoke(d, new object[] { e });
+            }
+            else
+            {
+                DownloadComplete(e.Directory, e.FileName);
+            }
+        }
+        private delegate void LastDownloadCompletedEventCallBack();
+        private void downloadsHandler_LastDownloadCompletedEventCallBack()
+        {
+            if (this.InvokeRequired)
+            {
+                LastDownloadCompletedEventCallBack d = new LastDownloadCompletedEventCallBack(downloadsHandler_LastDownloadCompletedEventCallBack);
+                this.Invoke(d, new object[] { });
+            }
+            else
+            {
+                srinkForm();
+            }
+        }
+        
         #endregion
 
         #region MainForm Events
@@ -140,66 +189,6 @@ namespace WindowsFormsApplication1
         }
         #endregion
 
-        #region YoutubeDownload
-        private void YoutubeDownload_NotificationEvent(object sender, string message, YoutubeDownload.AdditionAction action)
-        {
-            YoutubeDownload_NotificationEvent_Sync((YoutubeDownload)sender, message, action);
-        }
-
-        private void YoutubeDownload_VideoFromPlaylistUrlFound(object sender, string url)
-        {
-            YoutubeDownload_VideoFromPlaylistUrlFound_Sync(sender, url);
-        }
-        #endregion
-
-        #region YoutubeDownload Callbacks
-        delegate void NotificationCallback(YoutubeDownload sender, string message, YoutubeDownload.AdditionAction action);
-        private void YoutubeDownload_NotificationEvent_Sync(YoutubeDownload sender, string message, YoutubeDownload.AdditionAction action)
-        {
-            if (this.InvokeRequired)
-            {
-                NotificationCallback d = new NotificationCallback(YoutubeDownload_NotificationEvent_Sync);
-                this.Invoke(d, new object[] { sender, message, action });
-            }
-            else
-            {
-                if (message != "") 
-                    displayMessage(message);
-                switch (action)
-                {
-                    case YoutubeDownload.AdditionAction.Close:
-                        downloadsHandler.YoutubeDownloadClose(sender);
-                        break;
-                    case YoutubeDownload.AdditionAction.Complete:
-                        DownloadComplete(sender);
-                        break;
-                    case YoutubeDownload.AdditionAction.Exception:
-                        downloadsHandler.YoutubeDownloadClose(sender);
-                        break;
-                    case YoutubeDownload.AdditionAction.None:
-                        break;
-                    default:
-                        throw new Exception("DownloadProgress_NotificationEvent action not recognized");
-                }
-            }
-        }
-
-        delegate void Callback(object sender, string url);
-        private void YoutubeDownload_VideoFromPlaylistUrlFound_Sync(object sender, string url)
-        {
-            if (this.InvokeRequired)
-            {
-                Callback d
-                    = new Callback(YoutubeDownload_VideoFromPlaylistUrlFound_Sync);
-                this.Invoke(d, new object[] { sender, url });
-            }
-            else
-            {
-                downloadsHandler.AddOrQueueDownload(url, BucketPathTB.Text);
-            }
-        }
-        #endregion
-
         #endregion
 
         #region Settings
@@ -237,13 +226,11 @@ namespace WindowsFormsApplication1
             ResultRTB.Text += message + "\r\n";
         }
 
-        public void DownloadComplete(YoutubeDownload downloadProgressPanel)
+        public void DownloadComplete(string downloadDirectory, string fileName)
         {
-            downloadsHandler.YoutubeDownloadClose(downloadProgressPanel);
-            
             ExpandFormHeight();
 
-            Completed.Add(new CompletedDownload(this, downloadProgressPanel.DownloadDirectory, downloadProgressPanel.FileName, CompletedDownloadLocation));
+            Completed.Add(new CompletedDownload(this, downloadDirectory, fileName, CompletedDownloadLocation));
             CompletedDownloadLocation.Y += CompletedDownload.HEIGHT;
         }
 

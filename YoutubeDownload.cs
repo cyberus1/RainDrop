@@ -1,4 +1,5 @@
-﻿using System;
+﻿// todo: modify so it can close itself;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
@@ -25,24 +26,29 @@ namespace WindowsFormsApplication1
         #endregion
 
         #region Public Constants
-        public enum AdditionAction
+        public enum Status
         {
-            None,
-            Close,
+            Searching,
+            VideoUrlObtained,
+            VideoDownloading,
+            VideoDownloadComplete,
+            PlaylistUrlObtained,
+            PlaylistHandlingComplete,
+            None
+        }
+        public enum ReasonForClose
+        {
+            User,
             Complete,
+            PlaylistParsingFinished,
             Exception
         }
         #endregion
 
         #region Private Variables
-        private string _searchTerm;        
         private bool _isClosing = false;
         private WebClient webClient = new WebClient();
 
-        /// <summary>
-        /// Passes a url to donwload thread
-        /// </summary>
-        private volatile string _url; 
         /// <summary>
         /// passes the mtml document recieved by the webclient between threads
         /// </summary>
@@ -73,6 +79,21 @@ namespace WindowsFormsApplication1
             get;
             protected set;
         }
+        public string SearchTerm
+        {
+            get;
+            protected set;
+        }
+        public Status CurrentStatus
+        {
+            get;
+            protected set;
+        }
+        public string URL
+        {
+            get;
+            protected set;
+        }
         #endregion
 
         #region Constructor
@@ -86,6 +107,7 @@ namespace WindowsFormsApplication1
             FinishGetPlaylistUrlThread = new Thread(new ThreadStart(FinishGetPlaylistUrlFunction));
             FinishPlaylistHelperThread = new Thread(new ThreadStart(FinishPlaylistHelperFunction));
             downloadThread = new Thread(new ThreadStart(download));
+            CurrentStatus = Status.None;
         }
         #endregion
 
@@ -97,15 +119,18 @@ namespace WindowsFormsApplication1
             try
             {
 
-                Notify("Found URL: " + _url, AdditionAction.None);
+                Notify("Found URL: " + URL);
 
-                VideoInfo video = getVideo(_url);
+                VideoInfo video = getVideo(URL);
 
                 FileName = getFileName(video);
 
+                CurrentStatus = Status.VideoDownloading;
+
                 if (File.Exists(Path.Combine(DownloadDirectory, FileName)))
                 {
-                    Notify("File Already Exist: " + FileName, AdditionAction.Complete); //switched to complete
+                    Notify("File Already Exist: " + FileName); //switched to complete
+                    ThrowComplete();
                     return;
                 }
 
@@ -115,6 +140,8 @@ namespace WindowsFormsApplication1
                     progressBar.BeginInvoke(
                     new Action(() =>
                     {
+                        //if (_isClosing)
+                        //    return;
                         progressBar.Value = (int)(args.ProgressPercentage);
                     }));
 
@@ -124,6 +151,8 @@ namespace WindowsFormsApplication1
                     {
                         if (args.ProgressPercentage == 0)
                         {
+                            //if (_isClosing)
+                            //    return;
                             SetInfoLable("Extracting: " + FileName);
                         }
                         progressBar.Value = (int)(args.ProgressPercentage);
@@ -131,9 +160,14 @@ namespace WindowsFormsApplication1
 
                 SetInfoLable(FileName);
 
+                
+
                 audioDownloader.Execute();
 
-                Notify("Completed Download of: " + FileName, AdditionAction.Complete);
+                CurrentStatus = Status.VideoDownloadComplete;
+
+                Notify("Completed Download of: " + FileName);
+                ThrowComplete();
                 return;
             }
             catch (Exception ex)
@@ -142,11 +176,16 @@ namespace WindowsFormsApplication1
                 {
                     if (ex.GetType() == typeof(YoutubeParseException))
                     {
-                        Notify("Download Canceled: YoutubeParseException", AdditionAction.Exception);
+                        Notify("Download Canceled: YoutubeParseException");
+                        ThrowClose(ReasonForClose.Exception);
                     }
                     else
                     {
-                        Notify("Download Canceled: Exception Thrown: " + ex.ToString(), AdditionAction.Exception);
+                        if (!_isClosing)
+                        {
+                            Notify("Download Canceled: Exception Thrown: " + ex.ToString());
+                            ThrowClose(ReasonForClose.Exception);
+                        }
                     }
                 }
                 catch (Exception) { }
@@ -157,20 +196,20 @@ namespace WindowsFormsApplication1
         #region Other Threads
         private void SearchFunction()
         {
-            handleSearch(_searchTerm);
+            handleSearch(SearchTerm);
         }
 
         private void FinishGetYoutubeUrlFunction()
         {
-            _url = continueGetYoutubeUrl(_htmlDoc);
-
+            URL = continueGetYoutubeUrl(_htmlDoc);
+            CurrentStatus = Status.VideoUrlObtained;
             downloadThread.Start();
         }
         private void FinishGetPlaylistUrlFunction()
         {
-            string url = continueGetPlaylistUrl(_htmlDoc);
-
-            playlistHelper(url);
+            URL = continueGetPlaylistUrl(_htmlDoc);
+            CurrentStatus = Status.PlaylistUrlObtained;
+            playlistHelper(URL);
         }
         private void FinishPlaylistHelperFunction()
         {
@@ -187,10 +226,10 @@ namespace WindowsFormsApplication1
             if (Started != null)
                 Started(this);
             DownloadDirectory = dowloadDirectory;
-            _searchTerm = searchTerm;
-            InfoLabel.Text = "Searching for: " + _searchTerm;
-
+            SearchTerm = searchTerm;
+            InfoLabel.Text = "Searching for: " + SearchTerm;
             SearchThread.Start();
+            CurrentStatus = Status.Searching;
         }
 
         public void exit()
@@ -199,8 +238,8 @@ namespace WindowsFormsApplication1
             catch { }
             try { downloadThread.Abort(); }
             catch { }
-            //try { FinishPlaylistHelperThread.Abort(); }
-            //catch { }
+            try { FinishPlaylistHelperThread.Abort(); }
+            catch { }
             try { FinishGetPlaylistUrlThread.Abort(); }
             catch { }
             try { FinishGetYoutubeUrlThread.Abort(); }
@@ -215,7 +254,8 @@ namespace WindowsFormsApplication1
         #region Events
         private void CancelPictureBox_Click(object sender, EventArgs e)
         {
-            Notify("Download Cancled by user.", AdditionAction.Close);
+            Notify("Download Cancled by user.");
+            this.ThrowClose(ReasonForClose.User);
         }
 
         private void webClient_DownloadStringCompleted(object sender, DownloadStringCompletedEventArgs e)
@@ -238,34 +278,61 @@ namespace WindowsFormsApplication1
             }
             catch (Exception)
             {
-                Notify("Web Client Exception thrown", AdditionAction.Close);
+                Notify("Web Client Exception thrown");
+                
             }
         }
         #endregion
 
         #region New Events
-        public delegate void InfoEvent(object sender, string message, AdditionAction action);
+        public delegate void NotificationEvent(object sender, NotificationEventArgs e);
         [Browsable(true)]
-        public event InfoEvent NotificationEvent;
-        public delegate void foundUrlEvent(object sender, string url);
+        public event NotificationEvent Notification;
+        public delegate void FoundUrlEvent(object sender, UrlFoundEventArgs e);
         [Browsable(true)]
-        public event foundUrlEvent PlaylistDetected;
+        public event FoundUrlEvent PlaylistDetected;
         [Browsable(true)]
-        public event foundUrlEvent VideoFromPlaylistUrlFound;
+        public event FoundUrlEvent VideoFromPlaylistUrlFound;
         public delegate void simpleEvent(object sender);
         [Browsable(true)]
         public event simpleEvent Started;
+        public delegate void DownloadCompleteEvent(object sender, DownloadCompleteEventArgs e);
+        [Browsable(true)]
+        public event DownloadCompleteEvent DownloadComplete;
+        public delegate void DownloadClosingEvent(object sender, DownloadClosingEventArgs e);
+        [Browsable(true)]
+        public event DownloadClosingEvent DownloadClosing;
         #endregion
 
         #region Helpers
 
         #region First Degree Helpers
 
-        private void Notify(string message, AdditionAction action)
+        private void Notify(string message)
         {
-            if (_isClosing == true)
-                return;
-            switch (action)
+            if (Notification != null)
+                Notification(this, new NotificationEventArgs(new YoutubeDownloadInfo(this), message));
+        }
+        private void ThrowComplete()
+        {
+            if(DownloadComplete != null)
+                DownloadComplete(this, new DownloadCompleteEventArgs(new YoutubeDownloadInfo(this)));
+            ThrowClose(ReasonForClose.Complete);
+            
+        }
+        private void ThrowClose(ReasonForClose reason)
+        {
+            _isClosing = true;
+            this.DisposeCallBack();
+            if (DownloadClosing != null)
+                DownloadClosing(this, new DownloadClosingEventArgs(new YoutubeDownloadInfo(this), reason));
+
+        }
+
+        private delegate void voidCallback();
+        private void DisposeCallBack()
+        {
+            if (this.InvokeRequired)
             {
                 case AdditionAction.None:
                     break;
@@ -281,10 +348,7 @@ namespace WindowsFormsApplication1
                 default:
                     throw new Exception("YoutubeDownload Notify exception");
             }
-            if (NotificationEvent != null)
-                NotificationEvent(this, message, action);
         }
-
 
         private void handleSearch(string search)
         {
@@ -296,13 +360,15 @@ namespace WindowsFormsApplication1
                 }
                 if (search.Contains("/playlist?list="))
                 {
+                    URL = search;
+                    CurrentStatus = Status.PlaylistUrlObtained;
                     playlistHelper(search);
                     //Notify("Playlist Downloading", AdditionAction.Close);
                     return;
                 }
                 else
                 {
-                    _url = search;
+                    URL = search;
                     downloadThread.Start();
                     return;
                 }
@@ -411,7 +477,7 @@ namespace WindowsFormsApplication1
         private void playlistHelper(string PlaylistUrl)
         {
             if (PlaylistDetected != null)
-                PlaylistDetected(this, PlaylistUrl);
+                PlaylistDetected(this, new UrlFoundEventArgs(new YoutubeDownloadInfo(this)));
             downloadString(PlaylistUrl, DownloadReason.playlistHelper);
         }
 
@@ -498,23 +564,184 @@ namespace WindowsFormsApplication1
                 "Download Playlist", MessageBoxButtons.YesNo);
             if (dialogResult == DialogResult.Yes)
             {
-                Notify("Playlist Downloading", AdditionAction.None);
+                Notify("Playlist Downloading");
                 foreach (string id in videoIDs)
                 {
-                    string videoUrl = YOUTUBE_VIDEO_URL + id;
+                    string videoURL = YOUTUBE_VIDEO_URL + id;
                     if (VideoFromPlaylistUrlFound != null)
-                        VideoFromPlaylistUrlFound(this, videoUrl);
+                        VideoFromPlaylistUrlFound(this, new UrlFoundEventArgs(new YoutubeDownloadInfo(this), videoURL));
                 }
-                Notify("", AdditionAction.Close);
-
+                CurrentStatus = Status.PlaylistHandlingComplete;
+                ThrowClose(ReasonForClose.PlaylistParsingFinished);
+                return;
             }
-            Notify("Playlist Download Canceled", AdditionAction.Close);
+            Notify("Playlist Download Canceled");
+            ThrowClose(ReasonForClose.User);
         }
         #endregion
 
         #endregion
 
-        
+    }
+
+    #region YoutubeDownloadInfo
+    public class YoutubeDownloadInfo
+    {
+        public string SearchTerm
+        {
+            get;
+            protected set;
+        }
+        public string DownloadDirectory
+        {
+            get;
+            protected set;
+        }
+        public string FileName
+        {
+            get;
+            protected set;
+        }
+        public string URL
+        {
+            get;
+            protected set;
+        }
+        public YoutubeDownload.Status Status
+        {
+            get;
+            protected set;
+        }
+        public YoutubeDownloadInfo(YoutubeDownload download)
+        {
+            Status = download.CurrentStatus;
+            if (download.CurrentStatus == YoutubeDownload.Status.None)
+                return;
+            else
+            {
+                SearchTerm = download.SearchTerm;
+                DownloadDirectory = download.DownloadDirectory;
+            }
+            if (download.CurrentStatus == YoutubeDownload.Status.Searching)
+            {
+                return;
+            }
+            else
+            {
+                URL = download.URL;
+            }
+            if (download.CurrentStatus == YoutubeDownload.Status.VideoDownloadComplete || download.CurrentStatus == YoutubeDownload.Status.VideoDownloading)
+            {
+                FileName = download.FileName;
+            }
+        }
+    }
+    #endregion
+
+    #region EventArgs
+
+    #region YoutubeDownloadInfoEventArgs
+    public class YoutubeDownloadInfoEventArgs
+    {
+        public YoutubeDownloadInfo YoutubeDownloadInfo
+        {
+            get;
+            protected set;
+        }
+        public YoutubeDownloadInfoEventArgs(YoutubeDownloadInfo info)
+        {
+            this.YoutubeDownloadInfo = info;
+        }
 
     }
+    #endregion
+
+    #region NotificationEventArgs
+    public class NotificationEventArgs : YoutubeDownloadInfoEventArgs
+    {
+        public string Message
+        {
+            get;
+            protected set;
+        }
+        private NotificationEventArgs(YoutubeDownloadInfo info)
+            : base(info)
+        {
+        }
+        public NotificationEventArgs(YoutubeDownloadInfo info, string message)
+            : this(info)
+        {
+            Message = message;
+        }
+    }
+    #endregion
+
+    #region UrlFoundEventArgs
+    public class UrlFoundEventArgs : YoutubeDownloadInfoEventArgs
+    {
+        public string URL
+        {
+            get;
+            protected set;
+        }
+        public string DownloadDirectory
+        {
+            get { return this.YoutubeDownloadInfo.DownloadDirectory; }
+        }
+        public UrlFoundEventArgs(YoutubeDownloadInfo info, string url = null)
+            : base(info)
+        {
+            if (url == null)
+            {
+                URL = info.URL;
+            }
+            else
+            {
+                URL = url;
+            }
+            this.YoutubeDownloadInfo = info;
+            
+        }
+    }
+    #endregion
+
+    #region DownloadCompleteEventArgs
+    public class DownloadCompleteEventArgs : YoutubeDownloadInfoEventArgs
+    {
+        public string FileName
+        {
+            get { return this.YoutubeDownloadInfo.FileName; }
+        }
+        public string DownloadDirectory
+        {
+            get { return this.YoutubeDownloadInfo.DownloadDirectory; }
+        }
+        public DownloadCompleteEventArgs(YoutubeDownloadInfo info)
+            : base(info)
+        {
+        }
+    }
+    #endregion
+
+    #region DownloadClosingEventArgs
+    public class DownloadClosingEventArgs : YoutubeDownloadInfoEventArgs
+    {
+        public YoutubeDownload.ReasonForClose ReasonForClose
+        {
+            get;
+            protected set;
+        }
+        private DownloadClosingEventArgs(YoutubeDownloadInfo info)
+            : base(info)
+        { }
+        public DownloadClosingEventArgs(YoutubeDownloadInfo info, YoutubeDownload.ReasonForClose closeReason)
+            :this(info)
+        {
+            ReasonForClose = closeReason;
+        }
+        
+    }
+    #endregion
+
+    #endregion
 }
