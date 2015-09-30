@@ -279,7 +279,7 @@ namespace WindowsFormsApplication1
             catch (Exception)
             {
                 Notify("Web Client Exception thrown");
-                
+                this.ThrowClose(ReasonForClose.Exception);
             }
         }
         #endregion
