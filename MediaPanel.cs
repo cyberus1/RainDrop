@@ -16,6 +16,17 @@ namespace WindowsFormsApplication1
         private WindowsMediaPlayer mplayer = new WindowsMediaPlayer();
 
         #region Accessors
+
+        public bool IsPlaying
+        {
+            get
+            {
+                if (mplayer.playState == WMPPlayState.wmppsPlaying)
+                    return true;
+                return false;
+            }
+        }
+
         [DefaultValue(75),
         Browsable(true)]
         public int Volume
@@ -45,7 +56,7 @@ namespace WindowsFormsApplication1
             get { return _StoreSettings; }
             set { _StoreSettings = value; }
         }
-        private bool _StoreSettings;
+        private bool _StoreSettings = true;
         #endregion
 
         public MediaPanel()

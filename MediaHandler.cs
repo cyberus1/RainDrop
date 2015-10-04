@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.IO;
+using System.Windows.Forms;
 
 namespace WindowsFormsApplication1
 {
@@ -22,10 +23,29 @@ namespace WindowsFormsApplication1
         {
             PlayHelper(toPlay);
         }
+        public void Play()
+        {
+            if (CurrentPlaying != null)
+                PlayHelper(CurrentPlaying);
+        }
+        public void PlayPause()
+        {
+            if (_masterForm.mediaPanel1.IsPlaying)
+            {
+                Pause();
+            }
+            else
+            {
+                Play();
+            }
+        }
         public void Pause()
         {
             _masterForm.mediaPanel1.Pause();
-            CurrentPlaying.Stop(); // error got null reference 
+            if (CurrentPlaying != null)
+            {
+                CurrentPlaying.Stop(); // error got null reference
+            }
         }
         #endregion
 
@@ -188,7 +208,7 @@ namespace WindowsFormsApplication1
             _masterForm.mediaPanel1.NextClicked += new MediaPanel.SimpleEventHandler(mediaPanel1_NextClicked);
             _masterForm.mediaPanel1.PreviousClicked += new MediaPanel.SimpleEventHandler(mediaPanel1_PreviousClicked);
             _masterForm.mediaPanel1.MediaEnded += new MediaPanel.SimpleEventHandler(mediaPanel1_MediaEnded);
-        }
+                    }
         #endregion
     }
 }

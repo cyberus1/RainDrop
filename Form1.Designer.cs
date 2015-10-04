@@ -37,7 +37,7 @@
             this.label2 = new System.Windows.Forms.Label();
             this.MaxRainDropBox = new System.Windows.Forms.ComboBox();
             this.HelpAboutButton = new System.Windows.Forms.Button();
-            this.RainButton = new System.Windows.Forms.Button();
+            this.RainButton = new Cyberus.FormComponents.NoSelectButton();
             this.InputTextBox = new System.Windows.Forms.TextBox();
             this.label1 = new System.Windows.Forms.Label();
             this.BucketFolderBrowser = new System.Windows.Forms.FolderBrowserDialog();
@@ -246,6 +246,7 @@
             this.Name = "form1";
             this.Text = "RainDrop - Condensing the Cloud";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.form1_FormClosing);
+            this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.form1_KeyDown);
             this.panel1.ResumeLayout(false);
             this.panel1.PerformLayout();
             this.panel2.ResumeLayout(false);
@@ -259,7 +260,7 @@
         private System.Windows.Forms.Panel panel1;
         private System.Windows.Forms.ComboBox MaxRainDropBox;
         private System.Windows.Forms.Button HelpAboutButton;
-        private System.Windows.Forms.Button RainButton;
+        private Cyberus.FormComponents.NoSelectButton RainButton;
         private System.Windows.Forms.TextBox InputTextBox;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label label2;

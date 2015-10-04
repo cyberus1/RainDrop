@@ -86,6 +86,9 @@
     </Compile>
     <Compile Include="HttpHelper.cs" />
     <Compile Include="MediaHandler.cs" />
+    <Compile Include="NoSelectButton.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="ProgressEventArgs.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

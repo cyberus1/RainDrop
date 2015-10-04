@@ -1,5 +1,5 @@
 ﻿//Errors: 
-//
+// error where a download can be canceled and completed
 //
 //
 using System;
@@ -8,12 +8,12 @@ using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Linq;
-//using System.Text;
 using System.Windows.Forms;
 using System.IO;
 using System.Diagnostics;
 using System.Net;
 using WMPLib;
+using Cyberus.FormComponents;
 
 namespace WindowsFormsApplication1
 {
@@ -51,13 +51,13 @@ namespace WindowsFormsApplication1
         public form1()
         {
             InitializeComponent();
+            KeyPreview = true;
             
             CompletedDownloadLocation = COMPLETED_FILE_LOCATION;
             Size = DEFAULT_SIZE;
             
             mediaHandler = new MediaHandler(this);
             downloadsHandler = new DownloadsHandler(this, YOUTUBE_DOWNLOAD_CONTROL_LOCATION, Y_DISTANCE_BETWEEN_DOWNLOAD_CONTROLS);
-            //downloadsHandler.YoutubeDownloadStarted += new DownloadsHandler.passDownloadEvent(downloadsHandler_YoutubeDownloadStarted);
             downloadsHandler.LastDownloadCompletedEvent += new DownloadsHandler.simpleEvent(downloadsHandler_LastDownloadCompletedEvent);
             downloadsHandler.MessageEvent += new DownloadsHandler.messageEvent(downloadsHandler_MessageEvent);
             downloadsHandler.YoutubeDownloadComplete += new DownloadsHandler.YoutubeDownloadCompleteEvent(downloadsHandler_DownloadComplete);
@@ -189,6 +189,17 @@ namespace WindowsFormsApplication1
         }
         #endregion
 
+        private void form1_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Space)
+            {
+                if (this.InputTextBox.ContainsFocus == false)
+                {
+                    mediaHandler.PlayPause();
+                }
+            }
+        }
+        
         #endregion
 
         #region Settings
@@ -271,8 +282,6 @@ namespace WindowsFormsApplication1
         {
             mediaHandler.Pause();
         }
-        
-
         #endregion
 
     }

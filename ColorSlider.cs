@@ -575,10 +575,10 @@ namespace MB.Controls
         public ColorSlider(int min, int max, int value)
         {
             InitializeComponent();
+            SetStyle(ControlStyles.Selectable, false);
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer |
-                     ControlStyles.ResizeRedraw | ControlStyles.Selectable |
-                     ControlStyles.SupportsTransparentBackColor | ControlStyles.UserMouse |
-                     ControlStyles.UserPaint, true);
+                     ControlStyles.ResizeRedraw | ControlStyles.SupportsTransparentBackColor |
+                     ControlStyles.UserMouse | ControlStyles.UserPaint, true);
             BackColor = Color.Transparent;
 
             Minimum = min;
