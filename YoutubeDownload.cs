@@ -315,17 +315,23 @@ namespace WindowsFormsApplication1
         }
         private void ThrowComplete()
         {
-            if(DownloadComplete != null)
-                DownloadComplete(this, new DownloadCompleteEventArgs(new YoutubeDownloadInfo(this)));
-            ThrowClose(ReasonForClose.Complete);
+            if (!_isClosing)
+            {
+                if (DownloadComplete != null)
+                    DownloadComplete(this, new DownloadCompleteEventArgs(new YoutubeDownloadInfo(this)));
+                ThrowClose(ReasonForClose.Complete);
+            }
             
         }
         private void ThrowClose(ReasonForClose reason)
         {
-            _isClosing = true;
-            this.DisposeCallBack();
-            if (DownloadClosing != null)
-                DownloadClosing(this, new DownloadClosingEventArgs(new YoutubeDownloadInfo(this), reason));
+            if (!_isClosing)
+            {
+                _isClosing = true;
+                this.DisposeCallBack();
+                if (DownloadClosing != null)
+                    DownloadClosing(this, new DownloadClosingEventArgs(new YoutubeDownloadInfo(this), reason));
+            }
 
         }
 
