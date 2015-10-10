@@ -28,7 +28,7 @@ namespace WindowsFormsApplication1
         private const int TAG_FORM_HEIGHT = 136;
         private static readonly Size DEFAULT_SIZE = new Size(500, 470);
         private const int COMPLETED_HEADER_HEIGHT = 30;
-        private const int Y_DISTANCE_BETWEEN_DOWNLOAD_CONTROLS = 48;
+        private const int Y_DISTANCE_BETWEEN_DOWNLOAD_CONTROLS = 5;
         private const int MAXIMUM_ALLOWED_RAINDROPS = 10;
 
         //private Size EXPANDED_SIZE = new Size(950, 438);

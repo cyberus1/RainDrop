@@ -40,6 +40,12 @@ namespace WindowsFormsApplication1
         #endregion
 
         #region Constructor
+        /// <summary>
+        /// A Class that helps with laying out YoutubeDownload Controls on a Form
+        /// </summary>
+        /// <param name="masterform">The Form to place the YoutubeDownload Controls on</param>
+        /// <param name="downloadLocation">The Point on the Form where the first YoutubeDownload Control is to be placed</param>
+        /// <param name="VirticalDistanceBetweenDownloadControls">The Vertical distace between YoutubeDownload Control to be layed out on the Form (from bottom of one to top of another)</param>
         public DownloadsHandler(Form masterform, Point downloadLocation, int VirticalDistanceBetweenDownloadControls)
         {
             _masterform = masterform;
@@ -170,7 +176,7 @@ namespace WindowsFormsApplication1
             foreach (YoutubeDownload download in Downloads)
             {
                 moveDownload(download, _downloadLocation);
-                _downloadLocation.Y += _VirticalDistanceBetweenDownloadControls;
+                _downloadLocation.Y += download.Height + _VirticalDistanceBetweenDownloadControls;
             }
         }
         private delegate void moveDownloadDeligate(YoutubeDownload download, Point newLocation);
