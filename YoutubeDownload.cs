@@ -529,6 +529,11 @@ namespace WindowsFormsApplication1
         {
             webClient.Encoding = System.Text.Encoding.UTF8;
             Uri uri = new Uri(url);
+            //update for proxies
+            IWebProxy wp = WebRequest.DefaultWebProxy;
+            wp.Credentials = CredentialCache.DefaultCredentials;
+            webClient.Proxy = wp;
+            //
             webClient.DownloadStringAsync(uri, downloadReason);
         }
         private string replaceSpaceWithPlus(string search)

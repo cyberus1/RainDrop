@@ -91,6 +91,34 @@ namespace WindowsFormsApplication1
             set;
         }
 
+        [Browsable(true)]
+        public EditedStatuses EditedStatus
+        {
+            get { return _editedStatus; }
+            protected set
+            {
+                _editedStatus = value;
+                switch (value)
+                {
+                    case EditedStatuses.NotEdited:
+                        ChangeColor(COLOR_NOT_EDITED);
+                        break;
+                    case EditedStatuses.AutoTagged:
+                        ChangeColor(COLOR_AUTO_TAGGED);
+                        break;
+                    case EditedStatuses.AutoRenamed:
+                        ChangeColor(COLOR_AUTO_RENAMED);
+                        break;
+                    case EditedStatuses.AutoTaggedAndAutoRenamed:
+                        ChangeColor(COLOR_AUTO_TAGGED_AND_RENAMED);
+                        break;
+                    case EditedStatuses.ManuallyEdited:
+                        ChangeColor(COLOR_MANUALLY_EDITED);
+                        break;
+                }
+            }
+        }
+
         #endregion
 
         #region Private Variables

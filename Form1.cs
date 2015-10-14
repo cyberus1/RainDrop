@@ -94,7 +94,7 @@ namespace WindowsFormsApplication1
             if (this.InvokeRequired)
             {
                 MessageEventCallBack d = new MessageEventCallBack(downloadsHandler_MessageEventCallBack);
-                this.Invoke(d, new object[] { e });
+                this.Invoke(d, new object[] { e }); //error found object form1 disposed
             }
             else
             {
