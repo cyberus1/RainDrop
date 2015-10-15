@@ -64,6 +64,8 @@ namespace WindowsFormsApplication1
             downloadsHandler.NumberOfSimultaneousDownloadsAllowed = 3;
 
             loadSettings();
+
+
         }
         #endregion
 
