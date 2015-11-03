@@ -37,7 +37,7 @@ namespace WindowsFormsApplication1
         private System.Windows.Forms.PictureBox ClosePictureBox;
 
         private form1 _masterform;
-        private CompletedDownload _completedDownload;
+        private MusicFileControl _completedDownload;
         #endregion
 
         #region Constructors
@@ -47,7 +47,7 @@ namespace WindowsFormsApplication1
             _masterform = (form1)this.Parent;
         }
 
-        public EditPanel(form1 masterform, CompletedDownload completedDownload, Point Location)
+        public EditPanel(form1 masterform, MusicFileControl completedDownload, Point Location)
         {
             _completedDownload = completedDownload;
             _masterform = masterform;
@@ -58,7 +58,7 @@ namespace WindowsFormsApplication1
 
         #region get/set
 
-        private CompletedDownload CompletedDownload
+        private MusicFileControl CompletedDownload
         {
             get { return _completedDownload; }
             set 

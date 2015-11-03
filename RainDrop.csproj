@@ -64,7 +64,6 @@
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="ColorSlider.Designer.cs" />
-    <Compile Include="CompletedDownload.cs" />
     <Compile Include="Decipherer.cs" />
     <Compile Include="Downloader.cs" />
     <Compile Include="DownloadsHandler.cs" />

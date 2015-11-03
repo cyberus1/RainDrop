@@ -1,5 +1,5 @@
 ﻿//Errors: 
-// error where a download can be canceled and completed
+//
 //
 //
 using System;
@@ -13,7 +13,7 @@ using System.IO;
 using System.Diagnostics;
 using System.Net;
 using WMPLib;
-using Cyberus.FormComponents;
+//using Cyberus.FormComponents;
 
 namespace WindowsFormsApplication1
 {
@@ -44,7 +44,7 @@ namespace WindowsFormsApplication1
         #endregion
 
         #region Public Variables
-        public List<CompletedDownload> Completed = new List<CompletedDownload>(3);
+        public List<MusicFileControl> Completed = new List<MusicFileControl>(3);
         #endregion
 
         #region Constructor
@@ -76,7 +76,6 @@ namespace WindowsFormsApplication1
         {
             downloadsHandler_DownloadCompleteCallBack(e);
         }
-
         private void downloadsHandler_MessageEvent(object sender, MessageEventArgs e)
         {
             downloadsHandler_MessageEventCallBack(e); //I feel like i can remove somehow
@@ -242,10 +241,20 @@ namespace WindowsFormsApplication1
         public void DownloadComplete(string downloadDirectory, string fileName)
         {
             ExpandFormHeight();
-
-            Completed.Add(new CompletedDownload(this, downloadDirectory, fileName, CompletedDownloadLocation));
-            CompletedDownloadLocation.Y += CompletedDownload.HEIGHT;
+            AddMusicFileControl(downloadDirectory, fileName);
         }
+
+        private void AddMusicFileControl(string downloadDirectory, string filename)
+        {
+            MusicFileControl mf = new MusicFileControl();
+            Completed.Add(mf);
+            mf.SetFullPath(downloadDirectory, filename);
+            mf.Location = CompletedDownloadLocation;
+            this.Controls.Add(mf);
+            mf.Show();
+            CompletedDownloadLocation.Y += mf.Height;
+        }
+
 
         #endregion
 
@@ -268,7 +277,7 @@ namespace WindowsFormsApplication1
             {
                 formHeight += COMPLETED_HEADER_HEIGHT;
             }
-            formHeight += CompletedDownload.HEIGHT;
+            formHeight +=  MusicFileControl.HEIGHT;
             _size.Width = Size.Width;
             _size.Height = formHeight;
             Size = _size;
@@ -276,11 +285,11 @@ namespace WindowsFormsApplication1
         #endregion
 
         #region Media Player
-        public void Play(CompletedDownload toPlay)
+        public void Play(MusicFileControl toPlay)
         {
             mediaHandler.Play(toPlay);
         }
-        public void Pause(CompletedDownload toPlay)
+        public void Pause(MusicFileControl toPlay)
         {
             mediaHandler.Pause();
         }

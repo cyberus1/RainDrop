@@ -10,7 +10,7 @@ namespace WindowsFormsApplication1
     class MediaHandler
     {
         form1 _masterForm;
-        CompletedDownload CurrentPlaying;
+        MusicFileControl CurrentPlaying;
 
         public MediaHandler(form1 masterForm)
         {
@@ -19,7 +19,7 @@ namespace WindowsFormsApplication1
         }
 
         #region Public Methods
-        public void Play(CompletedDownload toPlay)
+        public void Play(MusicFileControl toPlay)
         {
             PlayHelper(toPlay);
         }
@@ -77,7 +77,7 @@ namespace WindowsFormsApplication1
         private string loopChecking_FirstSkipPath;
         private bool loopChecking_FirstSkipPathSet = false;
 
-        private void PlayHelper(CompletedDownload toPlay)
+        private void PlayHelper(MusicFileControl toPlay)
         {
             if (File.Exists(toPlay.FullPath))
             {
@@ -102,7 +102,7 @@ namespace WindowsFormsApplication1
                 playNext(toPlay);
             }
         }
-        private void playNext(CompletedDownload currentPlaying)
+        private void playNext(MusicFileControl currentPlaying)
         {
             for (int c = 0; c < _masterForm.Completed.Count; c++) //play Next
             {
@@ -126,7 +126,7 @@ namespace WindowsFormsApplication1
                 playNext(CurrentPlaying);
         }
 
-        private void playPrevious(CompletedDownload currentPlaying)
+        private void playPrevious(MusicFileControl currentPlaying)
         {
             for (int c = 0; c < _masterForm.Completed.Count; c++)
             {
@@ -154,7 +154,7 @@ namespace WindowsFormsApplication1
         private string loopChecking_PreviousFirstSkipPath;
         private bool loopChecking_PreviousFirstSkipPathSet = false;
 
-        private void PlayPreviousHelper(CompletedDownload toPlay)
+        private void PlayPreviousHelper(MusicFileControl toPlay)
         {
             if (File.Exists(toPlay.FullPath))
             {
@@ -184,7 +184,7 @@ namespace WindowsFormsApplication1
             if (CurrentPlaying != null)
                 PlayHelper(CurrentPlaying);
         }
-        private void _Play(CompletedDownload toPlay)
+        private void _Play(MusicFileControl toPlay)
         {
             if (CurrentPlaying != toPlay)
             {
