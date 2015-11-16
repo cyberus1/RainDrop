@@ -248,9 +248,9 @@ namespace WindowsFormsApplication1
         {
             MusicFileControl mf = new MusicFileControl();
             Completed.Add(mf);
-            mf.SetFullPath(downloadDirectory, filename);
-            mf.Location = CompletedDownloadLocation;
+            mf.setInfo(downloadDirectory, filename, CompletedDownloadLocation, MusicFileControl.EditedStatuses.NotEdited);
             this.Controls.Add(mf);
+            mediaHandler.addEvents(mf);
             mf.Show();
             CompletedDownloadLocation.Y += mf.Height;
         }

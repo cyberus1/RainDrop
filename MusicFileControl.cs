@@ -95,7 +95,7 @@ namespace WindowsFormsApplication1
         public EditedStatuses EditedStatus
         {
             get { return _editedStatus; }
-            protected set
+            set
             {
                 _editedStatus = value;
                 switch (value)
@@ -132,6 +132,13 @@ namespace WindowsFormsApplication1
         }
 
         #region Public Methods
+        public void setInfo(string directory, string filename, Point location, EditedStatuses editedStatus)
+        {
+            SetFullPath(directory, filename);
+            Location = location;
+            EditedStatus = editedStatus;
+
+        }
         public void FileNoLongerExist()
         {
 

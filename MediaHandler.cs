@@ -19,6 +19,7 @@ namespace WindowsFormsApplication1
         }
 
         #region Public Methods
+
         public void Play(MusicFileControl toPlay)
         {
             PlayHelper(toPlay);
@@ -47,6 +48,11 @@ namespace WindowsFormsApplication1
                 CurrentPlaying.Stop(); // error got null reference
             }
         }
+        public void addEvents(MusicFileControl mfc)
+        {
+            mfc.PlayClicked +=new MusicFileControl.PlayPauseClickedEvent(mfc_PlayClicked);
+            mfc.PauseClicked += new MusicFileControl.PlayPauseClickedEvent(mfc_PauseClicked);
+        }
         #endregion
 
         #region Events
@@ -69,6 +75,14 @@ namespace WindowsFormsApplication1
         private void mediaPanel1_MediaEnded(object sender)
         {
             playNext();
+        }
+        private void mfc_PlayClicked(object sender)
+        {
+            Play((MusicFileControl)sender);
+        }
+        private void mfc_PauseClicked(object sender)
+        {
+            Pause();
         }
         #endregion
 
