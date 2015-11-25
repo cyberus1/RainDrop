@@ -135,8 +135,7 @@ namespace WindowsFormsApplication1
                 if (LastDownloadCompletedEvent != null)
                     LastDownloadCompletedEvent(this);
             }
-            else
-                organizeDownloadForms();
+            organizeDownloadForms();
         }
         
         private void addDownload(string search, string downloadDirectory)

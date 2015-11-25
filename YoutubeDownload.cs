@@ -1,4 +1,4 @@
-﻿// todo: modify so it can close itself;
+﻿
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -484,11 +484,13 @@ namespace WindowsFormsApplication1
 
         private string getPlaylistName(string html)
         {
-            const string PLAYLIST_NAME_SEARCH = "<h1 class=\"pl-header-title\">";
+            const string PLAYLIST_NAME_SEARCH = "<h1 class=\"pl-header-title\"";
+            const char PLAYLIST_NAME_SEARCH_START = '>';
             const string PLAYLIST_NAME_END_SEARCH = "</h1>";
 
-            int startIndex = html.IndexOf(PLAYLIST_NAME_SEARCH) + PLAYLIST_NAME_SEARCH.Length;
-            int endIndex = html.IndexOf(PLAYLIST_NAME_END_SEARCH, startIndex);
+            int nearIndex = html.IndexOf(PLAYLIST_NAME_SEARCH) + PLAYLIST_NAME_SEARCH.Length;
+            int endIndex = html.IndexOf(PLAYLIST_NAME_END_SEARCH, nearIndex);
+            int startIndex = html.LastIndexOf(PLAYLIST_NAME_SEARCH_START, endIndex) + 1; //add 1 for the char '>'
             return html.Substring(startIndex, endIndex - startIndex).Trim();
         }
 
